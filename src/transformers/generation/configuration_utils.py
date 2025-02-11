@@ -93,6 +93,7 @@ class GenerationMode(ExplicitEnum):
     BEAM_SAMPLE = "beam_sample"
     CONSTRAINED_BEAM_SEARCH = "constrained_beam_search"
     GROUP_BEAM_SEARCH = "group_beam_search"
+    SELF_ALIGN_GENERATION = "self_align_generation"
 
 
 class GenerationConfig(PushToHubMixin):
@@ -406,6 +407,7 @@ class GenerationConfig(PushToHubMixin):
         self.num_beam_groups = kwargs.pop("num_beam_groups", 1)
         self.penalty_alpha = kwargs.pop("penalty_alpha", None)
         self.dola_layers = kwargs.pop("dola_layers", None)
+        self.use_suffix_for_eval = kwargs.pop("use_suffix_for_eval", False)
 
         # Parameters that control the cache
         self.use_cache = kwargs.pop("use_cache", True)
@@ -538,6 +540,8 @@ class GenerationConfig(PushToHubMixin):
         # property and part of the `__repr__`
         if self.constraints is not None or self.force_words_ids is not None:
             generation_mode = GenerationMode.CONSTRAINED_BEAM_SEARCH
+        elif self.use_suffix_for_eval:
+            generation_mode = GenerationMode.SELF_ALIGN_GENERATION
         elif self.num_beams == 1:
             if self.do_sample is False:
                 if (
