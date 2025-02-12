@@ -631,6 +631,7 @@ class GenerationMixin:
             # (the clone itself is always small)
             # Get logits for the last token in prompts and eval token
             # TODO use eval_logits properly
+            # TODO make sure the customized logit processor handles logits after common logit processors.
             next_token_logits = outputs.logits[:, 0, :].clone().float()
             eval_logits = outputs.logits[:, -1, :].clone().float()
             next_token_logits = next_token_logits.to(full_input_ids.device)
@@ -639,7 +640,7 @@ class GenerationMixin:
             counter += 1
             # pre-process distribution
             next_token_scores = next_token_logits
-            # next_token_scores = logits_processor(full_input_ids, next_token_logits, evaluation_logits=eval_logits)
+            next_token_scores = logits_processor(full_input_ids, next_token_logits, evaluation_logits=eval_logits)
 
             # Store scores, attentions and hidden_states when required
             if return_dict_in_generate:

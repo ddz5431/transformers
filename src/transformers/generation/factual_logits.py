@@ -1,39 +1,34 @@
-from typing import Optional, List
-
 import torch
 from transformers import LogitsProcessor
+from typing import Optional, List
 
 
 class SelfAlignConfig:
     def __init__(
         self,
-        factuality_threshold: float = 0.00001,
-        penalty: float = 0.7,
+        factuality_threshold: float = 0.3,
+        penalty: float = 5.0,
         factual_keywords: Optional[List[str]] = None,
         non_factual_keywords: Optional[List[str]] = None,
     ):
         """
-        Configuration for the Self-Align Logits Processor.
+        Configuration for Self-Align Logits Processor.
 
         Args:
-            factuality_threshold (float): Minimum score required for logits to pass without penalty.
-            penalty (float): Penalty multiplier applied to logits if factuality score is below the threshold.
-            factual_keywords (List[str]): List of keywords used for factuality evaluation. Default is predefined.
+            factuality_threshold (float): Minimum confidence score to avoid penalty.
+            penalty (float): Logit penalty applied when factuality is low.
+            factual_keywords (List[str]): Keywords indicating factuality.
+            non_factual_keywords (List[str]): Keywords indicating incorrect responses.
         """
         self.factuality_threshold = factuality_threshold
         self.penalty = penalty
-        self.factual_keywords = factual_keywords or ["true", "correct", "valid", "accurate", "yes"]
+        self.factual_keywords = factual_keywords or ["yes", "true", "correct", "valid", "accurate"]
         self.non_factual_keywords = non_factual_keywords or ["no", "false", "incorrect", "wrong"]
 
     def __repr__(self):
-        """
-        Representation for debugging and logging.
-        """
         return (
-            f"SelfAlignConfig("
-            f"factuality_threshold={self.factuality_threshold}, "
-            f"penalty={self.penalty}, "
-            f"factual_keywords={self.factual_keywords})"
+            f"SelfAlignConfig(factuality_threshold={self.factuality_threshold}, "
+            f"penalty={self.penalty}, factual_keywords={self.factual_keywords}, "
             f"non_factual_keywords={self.non_factual_keywords})"
         )
 
@@ -41,41 +36,26 @@ class SelfAlignConfig:
 class SelfAlignLogitsProcessor(LogitsProcessor):
     def __init__(self, tokenizer, config=SelfAlignConfig()):
         """
-        Custom LogitsProcessor for Self-Align factuality evaluation.
+        Custom LogitsProcessor for factuality evaluation.
 
         Args:
-            tokenizer: Hugging Face tokenizer for token conversions.
-            config: SelfAlignConfig object containing thresholds and penalties.
+            tokenizer: Hugging Face tokenizer.
+            config: SelfAlignConfig with thresholds and penalties.
         """
         self.tokenizer = tokenizer
         self.config = config
 
-    def evaluate_sequence(self, eval_logits: torch.Tensor, input_ids: torch.Tensor) -> List[
-        Optional[torch.Tensor]]:
-        """
-        Evaluates factuality based on logits at the evaluation position.
+        # Encode factual and non-factual keyword tokens
+        self.factual_tokens = self._encode_keywords(self.config.factual_keywords)
+        self.non_factual_tokens = self._encode_keywords(self.config.non_factual_keywords)
 
-        Args:
-            eval_logits: Logits corresponding to the factuality evaluation position.
-            input_ids: The sequence of token IDs generated so far.
-
-        Returns:
-            A list of factuality scores, one per batch element.
-        """
-        batch_size = input_ids.shape[0]
-
-        factuality_scores = []
-
-        for i in range(batch_size):
-            factuality_score = self._compute_factuality(eval_logits[i])
-            factuality_scores.append(factuality_score)
-
-        print(f"DEBUG: factuality_scores at end of evaluate_sequence: {factuality_scores}")
-        return factuality_scores  # Ensure it matches batch size
+    def _encode_keywords(self, keywords):
+        """Encodes keywords into token IDs."""
+        return [self.tokenizer.encode(f" {word}", add_special_tokens=False)[0] for word in keywords]
 
     def _compute_factuality(self, eval_logits: torch.FloatTensor) -> torch.Tensor:
         """
-        Compute factuality based on model's confidence in 'yes' vs. 'no'.
+        Compute factuality confidence based on model's probabilities.
 
         Args:
             eval_logits: Logits at the factuality evaluation step.
@@ -83,62 +63,68 @@ class SelfAlignLogitsProcessor(LogitsProcessor):
         Returns:
             A factuality score tensor.
         """
-        # Tokenize response choices
-        factual_tokens = [self.tokenizer.encode(f" {word}", add_special_tokens=False) for word in
-                          self.config.factual_keywords]
-        factual_tokens = sum(factual_tokens, [])  # Flatten the list
-
-        # Encode "non-factual" words from config
-        non_factual_tokens = [self.tokenizer.encode(f" {word}", add_special_tokens=False) for word in
-                              self.config.non_factual_keywords]
-        non_factual_tokens = sum(non_factual_tokens, [])  # Flatten
-
-        # Compute softmax probabilities
         probs = torch.softmax(eval_logits, dim=-1)
 
-        factual_prob = probs[factual_tokens].sum(dim=-1) if factual_tokens else torch.tensor(0.0,
-                                                                                             device=eval_logits.device)
-        non_factual_prob = probs[non_factual_tokens].sum(dim=-1) if non_factual_tokens else torch.tensor(0.0,
-                                                                                                         device=eval_logits.device)
+        # Ensure lists are not empty
+        factual_probs = (
+            torch.index_select(probs, dim=-1, index=torch.tensor(self.factual_tokens, device=probs.device)).sum()
+            if len(self.factual_tokens) > 0 else torch.tensor(0.0, device=eval_logits.device)
+        )
 
-        # Normalize
-        total_prob = factual_prob + non_factual_prob + 1e-6  # Prevent divide-by-zero
-        factuality_score = factual_prob / total_prob  # Confidence in factual response
+        non_factual_probs = (
+            torch.index_select(probs, dim=-1, index=torch.tensor(self.non_factual_tokens, device=probs.device)).sum()
+            if len(self.non_factual_tokens) > 0 else torch.tensor(0.0, device=eval_logits.device)
+        )
+
+        # Normalize each category by token count
+        num_factual_tokens = max(len(self.factual_tokens), 1)  # Avoid divide-by-zero
+        num_non_factual_tokens = max(len(self.non_factual_tokens), 1)
+
+        normalized_factual_prob = factual_probs / num_factual_tokens
+        normalized_non_factual_prob = non_factual_probs / num_non_factual_tokens
+
+        # Compute factuality score using normalized values
+        total_prob = normalized_factual_prob + normalized_non_factual_prob + 1e-6  # Prevent divide-by-zero
+        factuality_score = normalized_factual_prob / total_prob
 
         return factuality_score
 
-    def __call__(self,
-                 input_ids: torch.Tensor,
-                 scores: torch.Tensor,
-                 evaluation_logits: torch.Tensor) -> torch.FloatTensor:
+    def evaluate_sequence(self, eval_logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:
         """
-        Adjusts next-token logits based on Self-Align factuality evaluation.
+        Evaluates factuality for each batch element.
+
+        Args:
+            eval_logits: Logits corresponding to factuality evaluation.
+            input_ids: The generated sequence so far.
 
         Returns:
-            Adjusted logits for next-token prediction.
+            Tensor of factuality scores per batch.
+        """
+        batch_size = input_ids.shape[0]
+
+        factuality_scores = torch.zeros(batch_size, device=eval_logits.device)
+        for i in range(batch_size):
+            factuality_scores[i] = self._compute_factuality(eval_logits[i])
+
+        return factuality_scores
+
+    def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor, evaluation_logits: torch.Tensor) -> torch.Tensor:
+        """
+        Adjusts next-token logits based on factuality confidence.
+
+        Returns:
+            Adjusted logits tensor.
         """
         if evaluation_logits is not None:
-            # Evaluate factuality
+            # Compute factuality scores per batch
             factuality_scores = self.evaluate_sequence(evaluation_logits, input_ids[:, -1])
-            print(f"DEBUG: factuality_scores before filtering: {factuality_scores}")
 
-            # Convert None values to default factuality (1.0)
-            default_factuality = torch.tensor(1.0, device=scores.device, dtype=scores.dtype)
-            factuality_scores = [score if score is not None else default_factuality for score in factuality_scores]
+            # Identify sequences with low factuality
+            penalty_mask = factuality_scores < self.config.factuality_threshold
 
-            # Stack to create tensor
-            factuality_scores = torch.stack(factuality_scores).to(scores.device)
+            # Apply stronger penalty by reducing logits directly
+            scores[penalty_mask] -= self.config.penalty
 
-            # Ensure factuality_scores has the correct shape
-            if factuality_scores.dim() == 1:
-                factuality_scores = factuality_scores.unsqueeze(1)  # Shape [batch_size, 1]
-
-            print(f"DEBUG: factuality_scores final shape: {factuality_scores.shape}, scores shape: {scores.shape}")
-
-            # Expand factuality_scores to match scores shape
-            penalty_mask = (factuality_scores < self.config.factuality_threshold).expand(scores.shape)
-
-            # Apply penalty: Reduce probability for tokens when factuality is low
-            scores = scores * (~penalty_mask + penalty_mask * self.config.penalty)
+            print(f"DEBUG: Factuality Scores = {factuality_scores.tolist()} | Applied Penalty: {penalty_mask.sum().item()} sequences")
 
         return scores
