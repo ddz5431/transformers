@@ -597,10 +597,12 @@ class GenerationMixin:
                 os.environ["TOKENIZERS_PARALLELISM"] = "0"
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
+        counter = 0
         is_prefill = True
         while self._has_unfinished_sequences(
             this_peer_finished, synced_gpus, device=full_input_ids.device, cur_len=cur_len, max_length=max_length
         ):
+            print(f"=============================Generation step {counter} ========================================")
             # prepare model inputs
             print("Next model input:", tokenizer.decode(full_input_ids[0]))
             model_inputs = self.prepare_inputs_for_generation(full_input_ids, **model_kwargs)
@@ -633,8 +635,8 @@ class GenerationMixin:
             eval_logits = outputs.logits[:, -1, :].clone().float()
             next_token_logits = next_token_logits.to(full_input_ids.device)
             eval_logits = eval_logits.to(full_input_ids.device)
-            print("Suffix prediction", tokenizer.decode(eval_logits[0].argmax()))
-
+            print("DEBUG: Suffix prediction:\n", tokenizer.decode(eval_logits[0].argmax()))
+            counter += 1
             # pre-process distribution
             next_token_scores = next_token_logits
             # next_token_scores = logits_processor(full_input_ids, next_token_logits, evaluation_logits=eval_logits)
@@ -673,12 +675,12 @@ class GenerationMixin:
 
             # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
-            print("Newly predicted input ids:", tokenizer.decode(input_ids[0]))
+            print("DEBUG: Newly predicted input ids:\n", tokenizer.decode(input_ids[0]))
             full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
 
-            unfinished_sequences = unfinished_sequences & ~stopping_criteria(input_ids, scores)
+            unfinished_sequences = unfinished_sequences & ~stopping_criteria(input_ids, scores) # bitwise NOT: invert the bits
             this_peer_finished = unfinished_sequences.max() == 0
             cur_len += 1
 
@@ -2486,8 +2488,8 @@ class GenerationMixin:
             result = self._self_align_decoding(
                 input_ids=input_ids,
                 eval_input_ids=eval_inputs,
-                logits_processor=logits_processor,
-                stopping_criteria=stopping_criteria,
+                logits_processor=prepared_logits_processor,
+                stopping_criteria=prepared_stopping_criteria,
                 generation_config=generation_config,
                 tokenizer=tokenizer,  # Pass tokenizer here
                 synced_gpus=synced_gpus,
