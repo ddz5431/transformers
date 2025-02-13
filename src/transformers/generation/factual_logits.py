@@ -6,7 +6,7 @@ from typing import Optional, List
 class SelfAlignConfig:
     def __init__(
         self,
-        factuality_threshold: float = 0.3,
+        factuality_threshold: float = 0.2,
         penalty: float = 5.0,
         factual_keywords: Optional[List[str]] = None,
         non_factual_keywords: Optional[List[str]] = None,
@@ -53,41 +53,41 @@ class SelfAlignLogitsProcessor(LogitsProcessor):
         """Encodes keywords into token IDs."""
         return [self.tokenizer.encode(f" {word}", add_special_tokens=False)[0] for word in keywords]
 
-    def _compute_factuality(self, eval_logits: torch.FloatTensor) -> torch.Tensor:
+    def compute_yes_no_confidence(self, eval_logits: torch.Tensor, tokenizer) -> torch.Tensor:
         """
-        Compute factuality confidence based on model's probabilities.
+        Compute the confidence difference between "Yes" and "No" token probabilities.
 
         Args:
-            eval_logits: Logits at the factuality evaluation step.
+            eval_logits (torch.Tensor): Logits from the factuality evaluation step.
+            tokenizer: Hugging Face tokenizer.
 
         Returns:
-            A factuality score tensor.
+            torch.Tensor: Confidence gap between "Yes" and "No".
         """
+        yes_token_id = tokenizer.encode(" yes", add_special_tokens=False)[0]
+        no_token_id = tokenizer.encode(" no", add_special_tokens=False)[0]
+
         probs = torch.softmax(eval_logits, dim=-1)
 
-        # Ensure lists are not empty
-        factual_probs = (
-            torch.index_select(probs, dim=-1, index=torch.tensor(self.factual_tokens, device=probs.device)).sum()
-            if len(self.factual_tokens) > 0 else torch.tensor(0.0, device=eval_logits.device)
-        )
+        yes_prob = probs[:, yes_token_id]
+        no_prob = probs[:, no_token_id]
 
-        non_factual_probs = (
-            torch.index_select(probs, dim=-1, index=torch.tensor(self.non_factual_tokens, device=probs.device)).sum()
-            if len(self.non_factual_tokens) > 0 else torch.tensor(0.0, device=eval_logits.device)
-        )
+        confidence_gap = torch.abs(yes_prob - no_prob)  # How strongly the model prefers one answer
+        return confidence_gap
 
-        # Normalize each category by token count
-        num_factual_tokens = max(len(self.factual_tokens), 1)  # Avoid divide-by-zero
-        num_non_factual_tokens = max(len(self.non_factual_tokens), 1)
+    def compute_entropy(self, logits: torch.Tensor) -> torch.Tensor:
+        """
+        Computes entropy for a given logit distribution.
 
-        normalized_factual_prob = factual_probs / num_factual_tokens
-        normalized_non_factual_prob = non_factual_probs / num_non_factual_tokens
+        Args:
+            logits (torch.Tensor): Logits of the model output.
 
-        # Compute factuality score using normalized values
-        total_prob = normalized_factual_prob + normalized_non_factual_prob + 1e-6  # Prevent divide-by-zero
-        factuality_score = normalized_factual_prob / total_prob
-
-        return factuality_score
+        Returns:
+            torch.Tensor: Entropy score for each batch element.
+        """
+        probs = torch.softmax(logits, dim=-1)
+        entropy = -torch.sum(probs * torch.log(probs + 1e-6), dim=-1)  # Compute entropy
+        return entropy
 
     def evaluate_sequence(self, eval_logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:
         """
@@ -116,15 +116,20 @@ class SelfAlignLogitsProcessor(LogitsProcessor):
             Adjusted logits tensor.
         """
         if evaluation_logits is not None:
-            # Compute factuality scores per batch
-            factuality_scores = self.evaluate_sequence(evaluation_logits, input_ids[:, -1])
+            entropy = self.compute_entropy(evaluation_logits)
+            print(f"DEBUG: Computed entropy: {entropy}")
+            uncertainty_threshold = 2.0  # Tunable threshold
 
-            # Identify sequences with low factuality
-            penalty_mask = factuality_scores < self.config.factuality_threshold
+            # Compute Yes/No confidence gap
+            yes_no_confidence = self.compute_yes_no_confidence(evaluation_logits, self.tokenizer)
+
+            print(f"DEBUG: Entropy: {entropy}, Yes/No Confidence: {yes_no_confidence}")
+
+            high_uncertainty_mask = (entropy > uncertainty_threshold) & (yes_no_confidence < self.config.factuality_threshold)
 
             # Apply stronger penalty by reducing logits directly
-            scores[penalty_mask] -= self.config.penalty
-
-            print(f"DEBUG: Factuality Scores = {factuality_scores.tolist()} | Applied Penalty: {penalty_mask.sum().item()} sequences")
+            if high_uncertainty_mask.any():
+                print(f"DEBUG: High uncertainty detected in {high_uncertainty_mask.sum()} samples.")
+                scores[high_uncertainty_mask] *= 0.7  # Stronger penalty for very uncertain responses
 
         return scores
