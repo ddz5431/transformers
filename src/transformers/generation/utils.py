@@ -604,7 +604,8 @@ class GenerationMixin:
         ):
             print(f"=============================Generation step {counter} ========================================")
             # prepare model inputs
-            print("Next model input:", tokenizer.decode(full_input_ids[0]))
+            print("Next model input:")
+            print(tokenizer.decode(full_input_ids[0]))
             model_inputs = self.prepare_inputs_for_generation(full_input_ids, **model_kwargs)
 
             # prepare variable output controls (note: some models won't accept all output controls)
@@ -636,7 +637,7 @@ class GenerationMixin:
             eval_logits = outputs.logits[:, -1, :].clone().float()
             next_token_logits = next_token_logits.to(full_input_ids.device)
             eval_logits = eval_logits.to(full_input_ids.device)
-            print("DEBUG: Suffix prediction:\n", tokenizer.decode(eval_logits[0].argmax()))
+            # print("DEBUG: Suffix prediction:\n", tokenizer.decode(eval_logits[0].argmax()))
             counter += 1
             # pre-process distribution
             next_token_scores = next_token_logits
@@ -669,14 +670,16 @@ class GenerationMixin:
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
-
+            print("Predicted next tokens:")
+            print([tokenizer.decode(token) for token in next_tokens])
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
             # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
-            print("DEBUG: Newly predicted input ids:\n", tokenizer.decode(input_ids[0]))
+            print("Generated sequence until now:")
+            print(tokenizer.decode(input_ids[0], skip_special_tokens=True))
             full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
