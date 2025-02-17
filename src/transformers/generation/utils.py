@@ -28,7 +28,7 @@ from torch.nn import functional as F
 
 from transformers.generation.candidate_generator import AssistantVocabTranslatorCache
 
-from .factual_logits import SelfAlignLogitsProcessor
+from .safe_logits import SelfAlignLogitsProcessor
 from ..cache_utils import (
     Cache,
     DynamicCache,
@@ -602,10 +602,10 @@ class GenerationMixin:
         while self._has_unfinished_sequences(
             this_peer_finished, synced_gpus, device=full_input_ids.device, cur_len=cur_len, max_length=max_length
         ):
-            print(f"=============================Generation step {counter} ========================================")
+            # print(f"=============================Generation step {counter} ========================================")
             # prepare model inputs
-            print("Next model input:")
-            print(tokenizer.decode(full_input_ids[0]))
+            # print("Next model input:")
+            # print(tokenizer.decode(full_input_ids[0]))
             model_inputs = self.prepare_inputs_for_generation(full_input_ids, **model_kwargs)
 
             # prepare variable output controls (note: some models won't accept all output controls)
@@ -670,16 +670,16 @@ class GenerationMixin:
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
-            print("Predicted next tokens:")
-            print([tokenizer.decode(token) for token in next_tokens])
+            # print("Predicted next tokens:")
+            # print([tokenizer.decode(token) for token in next_tokens])
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
             # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
-            print("Generated sequence until now:")
-            print(tokenizer.decode(input_ids[0], skip_special_tokens=True))
+            # print("Generated sequence until now:")
+            # print(tokenizer.decode(input_ids[0], skip_special_tokens=True))
             full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
