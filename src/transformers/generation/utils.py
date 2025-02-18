@@ -2487,11 +2487,12 @@ class GenerationMixin:
         elif generation_mode == GenerationMode.SELF_ALIGN_GENERATION:
             # TODO improve logits_to_keep logic
             # if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-            model_kwargs["logits_to_keep"] = 1 + eval_inputs.shape[1]
+            eval_input_ids = kwargs.pop("eval_input_ids", None)
+            model_kwargs["logits_to_keep"] = 1 + eval_input_ids.shape[1]
 
             result = self._self_align_decoding(
                 input_ids=input_ids,
-                eval_input_ids=eval_inputs,
+                eval_input_ids=eval_input_ids,
                 logits_processor=prepared_logits_processor,
                 stopping_criteria=prepared_stopping_criteria,
                 generation_config=generation_config,
