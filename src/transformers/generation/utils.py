@@ -2187,7 +2187,6 @@ class GenerationMixin:
     def generate(
         self,
         inputs: Optional[torch.Tensor] = None,
-        eval_inputs: Optional[torch.Tensor] = None,
         generation_config: Optional[GenerationConfig] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
@@ -2487,7 +2486,7 @@ class GenerationMixin:
         elif generation_mode == GenerationMode.SELF_ALIGN_GENERATION:
             # TODO improve logits_to_keep logic
             # if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-            eval_input_ids = kwargs.pop("eval_input_ids", None)
+            eval_input_ids = model_kwargs.pop("eval_input_ids", None)
             model_kwargs["logits_to_keep"] = 1 + eval_input_ids.shape[1]
 
             result = self._self_align_decoding(

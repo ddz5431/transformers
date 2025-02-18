@@ -102,7 +102,7 @@ class TextGenerationPipeline(Pipeline):
         )
 
         if generation_config:
-            self.generation_config.update(generation_config.to_dict())
+            self.generation_config.update(**generation_config.to_dict())
 
         if "prefix" not in self._preprocess_params:
             # This is very specific. The logic is quite complex and needs to be done
@@ -433,12 +433,9 @@ class TextGenerationPipeline(Pipeline):
         if self.generation_config.use_suffix_for_eval:
             generate_kwargs["eval_input_ids"] = eval_input_ids
 
-        # Ensure generation_config is set
-        generate_kwargs["generation_config"] = self.generation_config.copy()
-        generate_kwargs["generation_config"].update(
-            {k: v for k, v in generate_kwargs.items() if k in self.generation_config.to_dict()})
-
-        output = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **generate_kwargs)
+        generate_kwargs["tokenizer"] = self.tokenizer
+        output = self.model.generate(input_ids=input_ids, attention_mask=attention_mask,
+                                     generation_config=self.generation_config, **generate_kwargs)
 
         if isinstance(output, ModelOutput):
             generated_sequence = output.sequences
