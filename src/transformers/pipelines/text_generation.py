@@ -95,11 +95,15 @@ class TextGenerationPipeline(Pipeline):
     begging for his blessing. <eod> </s> <eos>
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, generation_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.check_model_type(
             TF_MODEL_FOR_CAUSAL_LM_MAPPING_NAMES if self.framework == "tf" else MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
         )
+
+        if generation_config:
+            self.generation_config.update(generation_config.to_dict())
+
         if "prefix" not in self._preprocess_params:
             # This is very specific. The logic is quite complex and needs to be done
             # as a "default".
@@ -130,6 +134,7 @@ class TextGenerationPipeline(Pipeline):
         return_type=None,
         clean_up_tokenization_spaces=None,
         prefix=None,
+        suffix=None,
         handle_long_generation=None,
         stop_sequence=None,
         truncation=None,
@@ -160,6 +165,16 @@ class TextGenerationPipeline(Pipeline):
                 prefix, padding=False, add_special_tokens=add_special_tokens, return_tensors=self.framework
             )
             generate_kwargs["prefix_length"] = prefix_inputs["input_ids"].shape[-1]
+
+        if suffix is not None:
+            preprocess_params["suffix"] = suffix
+
+        # TODO figure out where is suffix_length supposed to be used
+        # if suffix:
+        #     suffix_inputs = self.tokenizer(
+        #         suffix, padding=False, add_special_tokens=add_special_tokens, return_tensors=self.framework
+        #     )
+        #     generate_kwargs["suffix_length"] = suffix_inputs["input_ids"].shape[-1]
 
         if handle_long_generation is not None:
             if handle_long_generation not in {"hole"}:
@@ -287,30 +302,30 @@ class TextGenerationPipeline(Pipeline):
         return super().__call__(text_inputs, **kwargs)
 
     def preprocess(
-        self,
-        prompt_text,
-        prefix="",
-        handle_long_generation=None,
-        add_special_tokens=None,
-        truncation=None,
-        padding=None,
-        max_length=None,
-        continue_final_message=None,
-        **generate_kwargs,
+            self,
+            prompt_text,
+            prefix="",
+            handle_long_generation=None,
+            add_special_tokens=None,
+            truncation=None,
+            padding=None,
+            max_length=None,
+            continue_final_message=None,
+            **generate_kwargs,
     ):
-        # Only set non-None tokenizer kwargs, so as to rely on the tokenizer's defaults
         tokenizer_kwargs = {
-            "add_special_tokens": add_special_tokens,
-            "truncation": truncation,
-            "padding": padding,
-            "max_length": max_length,
+            key: value
+            for key, value in {
+                "add_special_tokens": add_special_tokens,
+                "truncation": truncation,
+                "padding": padding,
+                "max_length": max_length,
+            }.items()
+            if value is not None
         }
-        tokenizer_kwargs = {key: value for key, value in tokenizer_kwargs.items() if value is not None}
 
         if isinstance(prompt_text, Chat):
-            tokenizer_kwargs.pop("add_special_tokens", None)  # ignore add_special_tokens on chats
-            # If the user passes a chat that ends in an assistant message, we treat it as a prefill by default
-            # because very few models support multiple separate, consecutive assistant messages
+            tokenizer_kwargs.pop("add_special_tokens", None)
             if continue_final_message is None:
                 continue_final_message = prompt_text.messages[-1]["role"] == "assistant"
             inputs = self.tokenizer.apply_chat_template(
@@ -324,32 +339,69 @@ class TextGenerationPipeline(Pipeline):
         else:
             inputs = self.tokenizer(prefix + prompt_text, return_tensors=self.framework, **tokenizer_kwargs)
 
+        suffix_prompt = generate_kwargs.pop("suffix", None)
+        use_suffix_for_eval = self.generation_config.use_suffix_for_eval
+
+        if use_suffix_for_eval and not suffix_prompt:
+            raise ValueError("`use_suffix_for_eval` requires `suffix` to be specified")
+
+        if suffix_prompt:
+            tokenizer_kwargs.pop("add_special_tokens", None)
+            if isinstance(prompt_text, Chat) and not isinstance(suffix_prompt, Chat):
+                suffix_prompt = Chat(suffix_prompt)
+
+            if continue_final_message is None:
+                continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
+
+            suffix_inputs = (
+                self.tokenizer.apply_chat_template(
+                    suffix_prompt.messages,
+                    add_generation_prompt=not continue_final_message,
+                    continue_final_message=continue_final_message,
+                    return_dict=True,
+                    return_tensors=self.framework,
+                    **tokenizer_kwargs,
+                )
+                if isinstance(suffix_prompt, Chat)
+                else self.tokenizer(suffix_prompt, return_tensors=self.framework, **tokenizer_kwargs)
+            )
+            inputs["eval_input_ids"] = suffix_inputs["input_ids"]
+
         inputs["prompt_text"] = prompt_text
+
+        if use_suffix_for_eval and "attention_mask" in inputs and "eval_input_ids" in inputs:
+            inputs["attention_mask"] = torch.cat(
+                [inputs["attention_mask"], suffix_inputs["attention_mask"]], dim=1
+            )
+        elif "attention_mask" in inputs:
+            inputs["attention_mask"] = inputs["attention_mask"]
 
         if handle_long_generation == "hole":
             cur_len = inputs["input_ids"].shape[-1]
-            if "max_new_tokens" in generate_kwargs:
-                new_tokens = generate_kwargs["max_new_tokens"]
-            else:
-                new_tokens = generate_kwargs.get("max_length", self.generation_config.max_length) - cur_len
-                if new_tokens < 0:
-                    raise ValueError("We cannot infer how many new tokens are expected")
+            new_tokens = generate_kwargs.get("max_new_tokens", generate_kwargs.get("max_length",
+                                                                                   self.generation_config.max_length) - cur_len)
+
+            if new_tokens < 0:
+                raise ValueError("We cannot infer how many new tokens are expected")
+
             if cur_len + new_tokens > self.tokenizer.model_max_length:
                 keep_length = self.tokenizer.model_max_length - new_tokens
                 if keep_length <= 0:
-                    raise ValueError(
-                        "We cannot use `hole` to handle this generation the number of desired tokens exceeds the"
-                        " models max length"
-                    )
+                    raise ValueError("Desired tokens exceed model's max length")
 
                 inputs["input_ids"] = inputs["input_ids"][:, -keep_length:]
                 if "attention_mask" in inputs:
                     inputs["attention_mask"] = inputs["attention_mask"][:, -keep_length:]
+                    if "eval_input_ids" in inputs:
+                        inputs["attention_mask"] = torch.cat(
+                            [inputs["attention_mask"], suffix_inputs["attention_mask"]], dim=1
+                        )
 
         return inputs
 
     def _forward(self, model_inputs, **generate_kwargs):
-        input_ids = model_inputs["input_ids"]
+        input_ids = model_inputs.get("input_ids", None)
+        eval_input_ids = model_inputs.get("eval_input_ids", None)
         attention_mask = model_inputs.get("attention_mask", None)
         # Allow empty prompts
         if input_ids.shape[1] == 0:
@@ -378,9 +430,13 @@ class TextGenerationPipeline(Pipeline):
             if not has_min_new_tokens and "min_length" in generate_kwargs:
                 generate_kwargs["min_length"] += prefix_length
 
-        # User-defined `generation_config` passed to the pipeline call take precedence
-        if "generation_config" not in generate_kwargs:
-            generate_kwargs["generation_config"] = self.generation_config
+        if self.generation_config.use_suffix_for_eval:
+            generate_kwargs["eval_input_ids"] = eval_input_ids
+
+        # Ensure generation_config is set
+        generate_kwargs["generation_config"] = self.generation_config.copy()
+        generate_kwargs["generation_config"].update(
+            {k: v for k, v in generate_kwargs.items() if k in self.generation_config.to_dict()})
 
         output = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **generate_kwargs)
 

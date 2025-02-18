@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from huggingface_hub import model_info
 
+from .. import GenerationConfig
 from ..configuration_utils import PretrainedConfig
 from ..dynamic_module_utils import get_class_from_dynamic_module
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
@@ -569,6 +570,7 @@ def pipeline(
     model: Optional[Union[str, "PreTrainedModel", "TFPreTrainedModel"]] = None,
     config: Optional[Union[str, PretrainedConfig]] = None,
     tokenizer: Optional[Union[str, PreTrainedTokenizer, "PreTrainedTokenizerFast"]] = None,
+    generation_config: Optional[GenerationConfig] = None,
     feature_extractor: Optional[Union[str, PreTrainedFeatureExtractor]] = None,
     image_processor: Optional[Union[str, BaseImageProcessor]] = None,
     processor: Optional[Union[str, ProcessorMixin]] = None,
@@ -658,6 +660,8 @@ def pipeline(
             is not specified or not a string, then the default tokenizer for `config` is loaded (if it is a string).
             However, if `config` is also not given or not a string, then the default tokenizer for the given `task`
             will be loaded.
+        generation_config (`str` or [`GenerationConfig`], *optional*):
+            # TODO write proper docu
         feature_extractor (`str` or [`PreTrainedFeatureExtractor`], *optional*):
             The feature extractor that will be used by the pipeline to encode data for the model. This can be a model
             identifier or an actual pretrained feature extractor inheriting from [`PreTrainedFeatureExtractor`].
@@ -1176,5 +1180,8 @@ def pipeline(
 
     if processor is not None:
         kwargs["processor"] = processor
+
+    if generation_config is not None:
+        kwargs["generation_config"] = generation_config
 
     return pipeline_class(model=model, framework=framework, task=task, **kwargs)
