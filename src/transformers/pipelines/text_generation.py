@@ -345,27 +345,35 @@ class TextGenerationPipeline(Pipeline):
         if use_suffix_for_eval and not suffix_prompt:
             raise ValueError("`use_suffix_for_eval` requires `suffix` to be specified")
 
-        if suffix_prompt:
-            tokenizer_kwargs.pop("add_special_tokens", None)
-            if isinstance(prompt_text, Chat) and not isinstance(suffix_prompt, Chat):
+        if use_suffix_for_eval:
+            if not isinstance(suffix_prompt, Chat):  # Ensure it's not already converted
+                if isinstance(suffix_prompt, list):
+                    raise ValueError("`suffix_prompt` should be a string, not a list of messages.")
+
+                # Construct a valid chat-like message for the suffix
+                # TODO set proper system message for suffix
+                suffix_prompt = [
+                    {"role": "system", "content": "This is additional context for the assistant."},
+                    {"role": "user", "content": suffix_prompt},
+                ]
                 suffix_prompt = Chat(suffix_prompt)
 
-            if continue_final_message is None:
-                continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
+                if continue_final_message is None:
+                    continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
 
-            suffix_inputs = (
-                self.tokenizer.apply_chat_template(
-                    suffix_prompt.messages,
-                    add_generation_prompt=not continue_final_message,
-                    continue_final_message=continue_final_message,
-                    return_dict=True,
-                    return_tensors=self.framework,
-                    **tokenizer_kwargs,
+                suffix_inputs = (
+                    self.tokenizer.apply_chat_template(
+                        suffix_prompt.messages,
+                        add_generation_prompt=not continue_final_message,
+                        continue_final_message=continue_final_message,
+                        return_dict=True,
+                        return_tensors=self.framework,
+                        **tokenizer_kwargs,
+                    )
+                    if isinstance(suffix_prompt, Chat)
+                    else self.tokenizer(suffix_prompt, return_tensors=self.framework, **tokenizer_kwargs)
                 )
-                if isinstance(suffix_prompt, Chat)
-                else self.tokenizer(suffix_prompt, return_tensors=self.framework, **tokenizer_kwargs)
-            )
-            inputs["eval_input_ids"] = suffix_inputs["input_ids"]
+                inputs["eval_input_ids"] = suffix_inputs["input_ids"]
 
         inputs["prompt_text"] = prompt_text
 
