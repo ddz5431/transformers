@@ -96,6 +96,7 @@ class TextGenerationPipeline(Pipeline):
     """
 
     def __init__(self, generation_config=None, *args, **kwargs):
+        # TODO check why case: pipeline with external loaded model does not have generation config
         super().__init__(*args, **kwargs)
         self.check_model_type(
             TF_MODEL_FOR_CAUSAL_LM_MAPPING_NAMES if self.framework == "tf" else MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
@@ -353,11 +354,10 @@ class TextGenerationPipeline(Pipeline):
                 # Construct a valid chat-like message for the suffix
                 # TODO set proper system message for suffix
                 suffix_prompt = [
-                    {"role": "system", "content": "This is additional context for the assistant."},
+                    {"role": "system", "content": "You must answer 'Yes' or 'No'."},
                     {"role": "user", "content": suffix_prompt},
                 ]
                 suffix_prompt = Chat(suffix_prompt)
-
                 if continue_final_message is None:
                     continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
 
