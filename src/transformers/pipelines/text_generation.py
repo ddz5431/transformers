@@ -340,40 +340,52 @@ class TextGenerationPipeline(Pipeline):
         else:
             inputs = self.tokenizer(prefix + prompt_text, return_tensors=self.framework, **tokenizer_kwargs)
 
+        # Store original prompt
+        inputs["prompt_text"] = prompt_text
+
+        # Check if suffix is needed before processing
         suffix_prompt = generate_kwargs.pop("suffix", None)
         use_suffix_for_eval = self.generation_config.use_suffix_for_eval
 
         if use_suffix_for_eval and not suffix_prompt:
             raise ValueError("`use_suffix_for_eval` requires `suffix` to be specified")
 
-        if use_suffix_for_eval:
-            if not isinstance(suffix_prompt, Chat):  # Ensure it's not already converted
+        # Only process suffix if both conditions are met
+        if use_suffix_for_eval and suffix_prompt:
+            # Lazily process suffix only when needed
+            if not isinstance(suffix_prompt, Chat):
                 if isinstance(suffix_prompt, list):
                     raise ValueError("`suffix_prompt` should be a string, not a list of messages.")
 
-                # Construct a valid chat-like message for the suffix
-                # TODO set proper system message for suffix
-                suffix_prompt = [
+                # Construct suffix as chat format
+                suffix_message = [
                     {"role": "system", "content": "You must answer 'Yes' or 'No'."},
                     {"role": "user", "content": suffix_prompt},
                 ]
-                suffix_prompt = Chat(suffix_prompt)
-                if continue_final_message is None:
-                    continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
+                suffix_prompt = Chat(suffix_message)
 
-                suffix_inputs = (
-                    self.tokenizer.apply_chat_template(
-                        suffix_prompt.messages,
-                        add_generation_prompt=not continue_final_message,
-                        continue_final_message=continue_final_message,
-                        return_dict=True,
-                        return_tensors=self.framework,
-                        **tokenizer_kwargs,
-                    )
-                    if isinstance(suffix_prompt, Chat)
-                    else self.tokenizer(suffix_prompt, return_tensors=self.framework, **tokenizer_kwargs)
+            if continue_final_message is None:
+                continue_final_message = suffix_prompt.messages[-1]["role"] == "assistant"
+
+            # Only tokenize once we need it
+            suffix_inputs = self.tokenizer.apply_chat_template(
+                suffix_prompt.messages,
+                add_generation_prompt=not continue_final_message,
+                continue_final_message=continue_final_message,
+                return_dict=True,
+                return_tensors=self.framework,
+                **tokenizer_kwargs,
+            ) if isinstance(suffix_prompt, Chat) else self.tokenizer(suffix_prompt, return_tensors=self.framework,
+                                                                     **tokenizer_kwargs)
+
+            # Add suffix information
+            inputs["eval_input_ids"] = suffix_inputs["input_ids"]
+
+            # Create combined attention mask only if needed
+            if "attention_mask" in inputs:
+                inputs["attention_mask"] = torch.cat(
+                    [inputs["attention_mask"], suffix_inputs["attention_mask"]], dim=1
                 )
-                inputs["eval_input_ids"] = suffix_inputs["input_ids"]
 
         inputs["prompt_text"] = prompt_text
 
@@ -381,13 +393,16 @@ class TextGenerationPipeline(Pipeline):
             inputs["attention_mask"] = torch.cat(
                 [inputs["attention_mask"], suffix_inputs["attention_mask"]], dim=1
             )
-        elif "attention_mask" in inputs:
-            inputs["attention_mask"] = inputs["attention_mask"]
+        elif use_suffix_for_eval and not suffix_prompt:
+            raise ValueError("`use_suffix_for_eval` requires `suffix` to be specified")
 
+        # Handle long generation only if necessary
         if handle_long_generation == "hole":
             cur_len = inputs["input_ids"].shape[-1]
-            new_tokens = generate_kwargs.get("max_new_tokens", generate_kwargs.get("max_length",
-                                                                                   self.generation_config.max_length) - cur_len)
+            new_tokens = generate_kwargs.get(
+                "max_new_tokens",
+                generate_kwargs.get("max_length", self.generation_config.max_length) - cur_len
+            )
 
             if new_tokens < 0:
                 raise ValueError("We cannot infer how many new tokens are expected")
@@ -397,10 +412,13 @@ class TextGenerationPipeline(Pipeline):
                 if keep_length <= 0:
                     raise ValueError("Desired tokens exceed model's max length")
 
+                # Truncate inputs in-place
                 inputs["input_ids"] = inputs["input_ids"][:, -keep_length:]
                 if "attention_mask" in inputs:
                     inputs["attention_mask"] = inputs["attention_mask"][:, -keep_length:]
-                    if "eval_input_ids" in inputs:
+
+                    # Only recombine if we already have eval_input_ids
+                    if "eval_input_ids" in inputs and use_suffix_for_eval and suffix_prompt:
                         inputs["attention_mask"] = torch.cat(
                             [inputs["attention_mask"], suffix_inputs["attention_mask"]], dim=1
                         )
