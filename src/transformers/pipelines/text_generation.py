@@ -242,6 +242,13 @@ class TextGenerationPipeline(Pipeline):
                 passed, this pipeline will continue each prompt. Alternatively, a "chat", in the form of a list
                 of dicts with "role" and "content" keys, can be passed, or a list of such chats. When chats are passed,
                 the model's chat template will be used to format them before passing them to the model.
+
+                Alternatively, pre-tokenized inputs can be passed as a dictionary containing:
+                - 'input_ids': Tensor of token ids
+                - 'attention_mask': Tensor of attention mask (optional)
+                - 'prompt_text': Original text or Chat object for postprocessing
+                Pre-tokenized inputs allow for more efficient processing when repeatedly using similar prompts.
+
             return_tensors (`bool`, *optional*, defaults to `False`):
                 Returns the tensors of predictions (as token indices) in the outputs. If set to
                 `True`, the decoded text is not returned.
@@ -279,7 +286,33 @@ class TextGenerationPipeline(Pipeline):
             - **generated_token_ids** (`torch.Tensor` or `tf.Tensor`, present when `return_tensors=True`) -- The token
               ids of the generated text.
         """
-        if isinstance(
+        # Check if inputs are already pre-tokenized
+        is_tokenized = (
+                isinstance(text_inputs, dict) and
+                "input_ids" in text_inputs and
+                "prompt_text" in text_inputs and
+                (
+                        (self.framework == "pt" and isinstance(text_inputs["input_ids"], torch.Tensor)) or
+                        (self.framework == "tf" and isinstance(text_inputs["input_ids"], tf.Tensor))
+                )
+        )
+
+        if is_tokenized:
+            # For pre-tokenized inputs, process directly without preprocessing
+            # Get parameters
+            preprocess_params, forward_params, postprocess_params = self._sanitize_parameters(**kwargs)
+
+            # Fuse init params and call params
+            forward_params = {**self._forward_params, **forward_params}
+            postprocess_params = {**self._postprocess_params, **postprocess_params}
+
+            # Run directly with tokenized inputs - skip preprocessing
+            with self.device_placement():
+                model_outputs = self.forward(text_inputs, **forward_params)
+
+            return self.postprocess(model_outputs, **postprocess_params)
+
+        elif isinstance(
             text_inputs,
             (list, tuple, types.GeneratorType, KeyDataset)
             if is_torch_available()
@@ -501,75 +534,100 @@ class TextGenerationPipeline(Pipeline):
         return model_outputs
 
     def postprocess(
-        self,
-        model_outputs,
-        return_type=ReturnType.FULL_TEXT,
-        clean_up_tokenization_spaces=True,
-        continue_final_message=None,
+            self,
+            model_outputs,
+            return_type=ReturnType.FULL_TEXT,
+            clean_up_tokenization_spaces=True,
+            continue_final_message=None,
     ):
-        generated_sequence = model_outputs["generated_sequence"][0]
+        """
+        Efficiently processes batched model outputs into human-readable text or token sequences.
+        """
+        # Extract generated sequences
+        generated_sequences = model_outputs["generated_sequence"]
+
+        # Ensure `generated_sequences` is a list of lists (convert tensors if needed)
+        if isinstance(generated_sequences, torch.Tensor):
+            generated_sequences = generated_sequences.cpu().numpy().tolist()
+        elif isinstance(generated_sequences, list) and isinstance(generated_sequences[0], torch.Tensor):
+            generated_sequences = [seq.cpu().numpy().tolist() for seq in generated_sequences]
+
+        # Flatten: If multiple return sequences exist, take the first one per batch
+        if isinstance(generated_sequences[0], list) and isinstance(generated_sequences[0][0], list):
+            generated_sequences = [seq[0] for seq in generated_sequences]  # Take first generated sequence
+
+        batch_size = len(generated_sequences)
+
+        # Handle input_ids (check for batched vs single case)
         input_ids = model_outputs["input_ids"]
+        if input_ids is not None:
+            if isinstance(input_ids, torch.Tensor):
+                input_ids = input_ids.cpu().numpy().tolist()
+            elif isinstance(input_ids, list) and isinstance(input_ids[0], torch.Tensor):
+                input_ids = [seq.cpu().numpy().tolist() for seq in input_ids]
+
+        # Ensure `prompt_text` is batched
         prompt_text = model_outputs["prompt_text"]
-        generated_sequence = generated_sequence.numpy().tolist()
-        records = []
+        if not isinstance(prompt_text, list):
+            prompt_text = [prompt_text] * batch_size  # Duplicate single prompt across batch
+
+        # Precompute prompt lengths using batch decoding (avoiding per-item decoding)
+        prompt_lengths = [0] * batch_size
+        if input_ids:
+            decoded_prompts = self.tokenizer.batch_decode(
+                input_ids, skip_special_tokens=True, clean_up_tokenization_spaces=clean_up_tokenization_spaces
+            )
+            prompt_lengths = [len(prompt) for prompt in decoded_prompts]
+
+        # Handle additional outputs
         other_outputs = model_outputs.get("additional_outputs", {})
-        splitted_keys = {}
-        if other_outputs:
-            if self.framework == "pt":
-                for k, v in other_outputs.items():
-                    if isinstance(v, torch.Tensor) and v.shape[0] == len(generated_sequence):
-                        splitted_keys[k] = v.numpy().tolist()
-            elif self.framework == "tf":
-                for k, v in other_outputs.items():
-                    if isinstance(v, tf.Tensor) and v.shape[0] == len(generated_sequence):
-                        splitted_keys[k] = v.numpy().tolist()
+        splitted_keys = {
+            k: v.cpu().numpy().tolist() if isinstance(v, torch.Tensor) else v.numpy().tolist()
+            for k, v in other_outputs.items()
+            if isinstance(v, (torch.Tensor, tf.Tensor)) and len(v) == batch_size
+        }
 
-        for idx, sequence in enumerate(generated_sequence):
+        # Decode all generated sequences in batch
+        decoded_texts = self.tokenizer.batch_decode(
+            generated_sequences, skip_special_tokens=True, clean_up_tokenization_spaces=clean_up_tokenization_spaces
+        )
+
+        records = []
+        for idx, text in enumerate(decoded_texts):
+            record = {}
+
             if return_type == ReturnType.TENSORS:
-                record = {"generated_token_ids": sequence}
-            elif return_type in {ReturnType.NEW_TEXT, ReturnType.FULL_TEXT}:
-                # Decode text
-                text = self.tokenizer.decode(
-                    sequence,
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=clean_up_tokenization_spaces,
-                )
+                record["generated_token_ids"] = generated_sequences[idx]
+            else:
+                # Extract new text portion after the prompt
+                all_text = text[prompt_lengths[idx]:]
 
-                # Remove PADDING prompt of the sequence if XLNet or Transfo-XL model is used
-                if input_ids is None:
-                    prompt_length = 0
-                else:
-                    prompt_length = len(
-                        self.tokenizer.decode(
-                            input_ids[0],
-                            skip_special_tokens=True,
-                            clean_up_tokenization_spaces=clean_up_tokenization_spaces,
-                        )
-                    )
-
-                all_text = text[prompt_length:]
                 if return_type == ReturnType.FULL_TEXT:
-                    if isinstance(prompt_text, str):
-                        all_text = prompt_text + all_text
-                    elif isinstance(prompt_text, Chat):
+                    prompt = prompt_text[idx]
+                    if isinstance(prompt, str):
+                        all_text = prompt + all_text
+                    elif isinstance(prompt, Chat):
                         if continue_final_message is None:
-                            # If the user passes a chat ending in an assistant message, we treat it as a prefill by
-                            # default because very few models support multiple separate, consecutive assistant messages
-                            continue_final_message = prompt_text.messages[-1]["role"] == "assistant"
+                            continue_final_message = prompt.messages[-1]["role"] == "assistant"
+
                         if continue_final_message:
-                            # With assistant prefill, concat onto the end of the last message
-                            all_text = list(prompt_text.messages)[:-1] + [
+                            # Append output to last assistant message
+                            all_text = list(prompt.messages)[:-1] + [
                                 {
-                                    "role": prompt_text.messages[-1]["role"],
-                                    "content": prompt_text.messages[-1]["content"] + all_text,
+                                    "role": prompt.messages[-1]["role"],
+                                    "content": prompt.messages[-1]["content"] + all_text,
                                 }
                             ]
                         else:
-                            # When we're not starting from a prefill, the output is a new assistant message
-                            all_text = list(prompt_text.messages) + [{"role": "assistant", "content": all_text}]
-                record = {"generated_text": all_text}
-                for key, values in splitted_keys.items():
-                    record[key] = values[idx]
+                            # Create a new assistant message
+                            all_text = list(prompt.messages) + [{"role": "assistant", "content": all_text}]
+
+                record["generated_text"] = all_text
+
+            # Add additional model outputs
+            for key, values in splitted_keys.items():
+                record[key] = values[idx]
+
             records.append(record)
 
         return records
