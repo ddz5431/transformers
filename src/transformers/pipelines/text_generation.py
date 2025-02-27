@@ -471,6 +471,14 @@ class TextGenerationPipeline(Pipeline):
             in_b = input_ids.shape[0]
         prompt_text = model_inputs.pop("prompt_text")
 
+        # Use non_blocking transfers when moving tensors to the device
+        if input_ids is not None and hasattr(input_ids, 'to'):
+            input_ids = input_ids.to(self.model.device, non_blocking=True)
+        if attention_mask is not None and hasattr(attention_mask, 'to'):
+            attention_mask = attention_mask.to(self.model.device, non_blocking=True)
+        if eval_input_ids is not None and hasattr(eval_input_ids, 'to'):
+            eval_input_ids = eval_input_ids.to(self.model.device, non_blocking=True)
+
         # If there is a prefix, we may need to adjust the generation length. Do so without permanently modifying
         # generate_kwargs, as some of the parameterization may come from the initialization of the pipeline.
         prefix_length = generate_kwargs.pop("prefix_length", 0)
