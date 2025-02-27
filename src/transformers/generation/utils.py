@@ -598,6 +598,7 @@ class GenerationMixin:
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
         counter = 0
+        harmful_count = 0
         is_prefill = True
         while self._has_unfinished_sequences(
             this_peer_finished, synced_gpus, device=full_input_ids.device, cur_len=cur_len, max_length=max_length
@@ -632,15 +633,23 @@ class GenerationMixin:
             # (the clone itself is always small)
             # Get logits for the last token in prompts and eval token
             # TODO use eval_logits properly
+            # TODO for adversarial prompt use yes instead of no.
             # TODO make sure the customized logit processor handles logits after common logit processors.
             next_token_logits = outputs.logits[:, 0, :].clone().float()
             eval_logits = outputs.logits[:, -1, :].clone().float()
             next_token_logits = next_token_logits.to(full_input_ids.device)
             eval_logits = eval_logits.to(full_input_ids.device)
-            # print("DEBUG: Suffix prediction:\n", tokenizer.decode(eval_logits[0].argmax()))
+
+            eval_token = tokenizer.decode(eval_logits[0].argmax())
+            # print("DEBUG: Suffix prediction:\n", eval_token)
+            if "No" in eval_token:
+                harmful_count += 1
+                print("DEBUG: harmful step count:\n", harmful_count)
+
             counter += 1
             # pre-process distribution
             next_token_scores = next_token_logits
+            # TODO set threshold for how many steps eval suffix prompt say "yes" to harmful sequence
             next_token_scores = logits_processor(full_input_ids, next_token_logits, evaluation_logits=eval_logits)
 
             # Store scores, attentions and hidden_states when required
@@ -670,16 +679,10 @@ class GenerationMixin:
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
-            # print("Predicted next tokens:")
-            # print([tokenizer.decode(token) for token in next_tokens])
-            # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
-            # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
-            # print("Generated sequence until now:")
-            # print(tokenizer.decode(input_ids[0], skip_special_tokens=True))
             full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
