@@ -1,6 +1,5 @@
 import torch
 from transformers import LogitsProcessor
-from typing import Optional, List
 
 
 class SelfAlignConfig:
@@ -75,8 +74,10 @@ class SelfAlignLogitsProcessor(LogitsProcessor):
         """
         if evaluation_logits is not None:
             max_token_ids = evaluation_logits.argmax(dim=-1)
+            print(self.tokenizer.decode(max_token_ids))
+            # TODO differentiate normal prompt and adversarial prompt
             # Create a mask where evaluation logits indicate a "yes" token
-            mask = torch.isin(max_token_ids, self.yes_token_ids.to(evaluation_logits.device))  # Shape: (batch_size,)
+            mask = torch.isin(max_token_ids, self.no_token_ids.to(evaluation_logits.device))  # Shape: (batch_size,)
 
             if mask.any():
                 # Set all scores to a very low value except for EOS token
