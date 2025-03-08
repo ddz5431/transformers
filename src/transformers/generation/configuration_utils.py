@@ -408,6 +408,7 @@ class GenerationConfig(PushToHubMixin):
         self.penalty_alpha = kwargs.pop("penalty_alpha", None)
         self.dola_layers = kwargs.pop("dola_layers", None)
         self.use_suffix_for_eval = kwargs.pop("use_suffix_for_eval", False)
+        self.token_ids_for_suffix_logits = kwargs.pop("token_ids_for_suffix_logits", False)
 
         # Parameters that control the cache
         self.use_cache = kwargs.pop("use_cache", True)

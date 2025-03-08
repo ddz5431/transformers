@@ -603,10 +603,7 @@ class GenerationMixin:
         while self._has_unfinished_sequences(
             this_peer_finished, synced_gpus, device=full_input_ids.device, cur_len=cur_len, max_length=max_length
         ):
-            # print(f"=============================Generation step {counter} ========================================")
             # prepare model inputs
-            # print("Next model input:")
-            # print(tokenizer.decode(full_input_ids[0]))
             model_inputs = self.prepare_inputs_for_generation(full_input_ids, **model_kwargs)
 
             # prepare variable output controls (note: some models won't accept all output controls)
@@ -633,7 +630,7 @@ class GenerationMixin:
             # (the clone itself is always small)
             # Get logits for the last token in prompts and eval token
             # TODO use eval_logits properly
-            # TODO for adversarial prompt use yes instead of no.
+            # TODO for negation prompt use yes instead of no.
             # TODO make sure the customized logit processor handles logits after common logit processors.
             next_token_logits = outputs.logits[:, 0, :].clone().float()
             eval_logits = outputs.logits[:, -1, :].clone().float()
@@ -641,10 +638,13 @@ class GenerationMixin:
             eval_logits = eval_logits.to(full_input_ids.device)
 
             eval_token = tokenizer.decode(eval_logits[0].argmax())
-            # print("DEBUG: Suffix prediction:\n", eval_token)
-            if "No" in eval_token:
-                harmful_count += 1
-                print("DEBUG: harmful step count:\n", harmful_count)
+            # if "Yes" in eval_token:
+                # print(f"=============================Generation step {counter} ========================================")
+                # print("Current model input:")
+                # print(tokenizer.decode(full_input_ids[0]))
+                # print("DEBUG: Suffix prediction:\n", eval_token)
+                # harmful_count += 1
+                # print("DEBUG: harmful step count:\n", harmful_count)
 
             counter += 1
             # pre-process distribution
