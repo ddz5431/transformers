@@ -3,6 +3,7 @@ import itertools
 import types
 from typing import Dict
 
+from .. import BatchEncoding
 from ..utils import ModelOutput, add_end_docstrings, is_tf_available, is_torch_available
 from .base import Pipeline, build_pipeline_init_args
 
@@ -288,9 +289,8 @@ class TextGenerationPipeline(Pipeline):
         """
         # Check if inputs are already pre-tokenized
         is_tokenized = (
-                isinstance(text_inputs, dict) and
+                (isinstance(text_inputs, dict) or isinstance(text_inputs, BatchEncoding)) and
                 "input_ids" in text_inputs and
-                "prompt_text" in text_inputs and
                 (
                         (self.framework == "pt" and isinstance(text_inputs["input_ids"], torch.Tensor)) or
                         (self.framework == "tf" and isinstance(text_inputs["input_ids"], tf.Tensor))
