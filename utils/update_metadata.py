@@ -1,34 +1,3 @@
-# coding=utf-8
-# Copyright 2021 The HuggingFace Inc. team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-Utility that updates the metadata of the Transformers library in the repository `huggingface/transformers-metadata`.
-
-Usage for an update (as used by the GitHub action `update_metadata`):
-
-```bash
-python utils/update_metadata.py --token <token> --commit_sha <commit_sha>
-```
-
-Usage to check all pipelines are properly defined in the constant `PIPELINE_TAGS_AND_AUTO_MODELS` of this script, so
-that new pipelines are properly added as metadata (as used in `make repo-consistency`):
-
-```bash
-python utils/update_metadata.py --check-only
-```
-"""
-
 import argparse
 import collections
 import os
@@ -45,8 +14,7 @@ from transformers.utils import direct_transformers_import
 
 # All paths are set with the intent you should run this script from the root of the repo with the command
 # python utils/update_metadata.py
-TRANSFORMERS_PATH = "src/transformers"
-
+TRANSFORMERS_PATH = "transformers/src/transformers"
 
 # This is to make sure the transformers module imported is the one in the repo.
 transformers_module = direct_transformers_import(TRANSFORMERS_PATH)
@@ -227,8 +195,6 @@ def update_pipeline_and_auto_class_table(table: Dict[str, Tuple[str, str]]) -> D
     """
     auto_modules = [
         transformers_module.models.auto.modeling_auto,
-        transformers_module.models.auto.modeling_tf_auto,
-        transformers_module.models.auto.modeling_flax_auto,
     ]
     for pipeline_tag, model_mapping, auto_class in PIPELINE_TAGS_AND_AUTO_MODELS:
         model_mappings = [model_mapping, f"TF_{model_mapping}", f"FLAX_{model_mapping}"]
@@ -252,13 +218,14 @@ def update_pipeline_and_auto_class_table(table: Dict[str, Tuple[str, str]]) -> D
     return table
 
 
-def update_metadata(token: str, commit_sha: str):
+def update_metadata(token: str, commit_sha: str, create_pr: bool = False):
     """
     Update the metadata for the Transformers repo in `huggingface/transformers-metadata`.
 
     Args:
         token (`str`): A valid token giving write access to `huggingface/transformers-metadata`.
         commit_sha (`str`): The commit SHA on Transformers corresponding to this update.
+        create_pr (`bool`, optional, defaults to `False`): Whether to create a PR instead of committing directly.
     """
     frameworks_table = get_frameworks_table()
     frameworks_dataset = Dataset.from_pandas(frameworks_table)
@@ -332,6 +299,7 @@ def update_metadata(token: str, commit_sha: str):
             repo_type="dataset",
             token=token,
             commit_message=commit_message,
+            create_pr=create_pr,  # Add the create_pr parameter
         )
 
 
@@ -364,9 +332,10 @@ if __name__ == "__main__":
     parser.add_argument("--token", type=str, help="The token to use to push to the transformers-metadata dataset.")
     parser.add_argument("--commit_sha", type=str, help="The sha of the commit going with this update.")
     parser.add_argument("--check-only", action="store_true", help="Activate to just check all pipelines are present.")
+    parser.add_argument("--create_pr", type=int, default=0, help="Set to 1 to create a PR instead of committing directly.")
     args = parser.parse_args()
 
     if args.check_only:
         check_pipeline_tags()
     else:
-        update_metadata(args.token, args.commit_sha)
+        update_metadata(args.token, args.commit_sha, bool(args.create_pr))
