@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
+import copy  # noqa: I001
 import inspect
 import os
 import warnings
@@ -638,13 +638,13 @@ class GenerationMixin:
             eval_logits = eval_logits.to(full_input_ids.device)
 
             eval_token = tokenizer.decode(eval_logits[0].argmax())
-            # if "Yes" in eval_token:
-                # print(f"=============================Generation step {counter} ========================================")
-                # print("Current model input:")
-                # print(tokenizer.decode(full_input_ids[0]))
-                # print("DEBUG: Suffix prediction:\n", eval_token)
-                # harmful_count += 1
-                # print("DEBUG: harmful step count:\n", harmful_count)
+            if "Yes" in eval_token:
+                print(f"--------------- step {counter} --------------------")
+                print("Current model input:")
+                print(tokenizer.decode(full_input_ids[0]))
+                print("DEBUG: Suffix prediction:\n", eval_token)
+                harmful_count += 1
+                print("DEBUG: harmful step count:\n", harmful_count)
 
             counter += 1
             # pre-process distribution
