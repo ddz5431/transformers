@@ -39,6 +39,7 @@ from ..cache_utils import (
     OffloadedHybridCache,
     QuantizedCacheConfig,
     StaticCache,
+    HybridCache,
 )
 from ..configuration_utils import PretrainedConfig
 from ..integrations.deepspeed import is_deepspeed_zero3_enabled
@@ -1107,8 +1108,12 @@ class GenerationMixin:
                     cache_name = "past_key_values"
                 else:
                     cache_name = possible_cache_name
-                model_kwargs[cache_name] = getattr(outputs, possible_cache_name)
-                model_kwargs[cache_name].crop(-num_eval_input_ids)
+                cache_obj = getattr(outputs, possible_cache_name)
+                model_kwargs[cache_name] = cache_obj
+
+                if hasattr(cache_obj, "crop"): # dynamic cache
+                    cache_obj.crop(-num_eval_input_ids)
+                # HybridCache and others will handle trimming internally
                 break
 
         # update token_type_ids with last value
@@ -1133,7 +1138,16 @@ class GenerationMixin:
                 )
 
         if model_kwargs.get("use_cache", True):
-            model_kwargs["cache_position"] = model_kwargs["cache_position"][-(num_eval_input_ids + 1):] + num_new_tokens
+            cache_obj = model_kwargs.get(cache_name, None)
+            if isinstance(cache_obj, HybridCache):
+                # Ensure cache_position stays aligned with HybridCache sliding window
+                model_kwargs["cache_position"] = model_kwargs["cache_position"][
+                                                 -(num_eval_input_ids + 1):] + num_new_tokens
+                max_cache_len = cache_obj.get_max_cache_shape()
+                model_kwargs["cache_position"] = model_kwargs["cache_position"].clamp(0, max_cache_len - 1)
+            else:
+                # cache position = the "token position" for which attention will be calculated against all cached keys.
+                model_kwargs["cache_position"] = model_kwargs["cache_position"][-(num_eval_input_ids + 1):] + num_new_tokens
         else:
             # TODO: cache handling
             past_positions = model_kwargs.pop("cache_position")
