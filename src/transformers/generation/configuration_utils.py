@@ -397,6 +397,11 @@ class GenerationConfig(PushToHubMixin):
     extra_output_flags = ("output_attentions", "output_hidden_states", "output_scores", "output_logits")
 
     def __init__(self, **kwargs):
+        ### TODO 💥additional parameters for experimental tracking, should be discarded after finishing experiments
+        self.dataset = kwargs.pop("dataset", None)
+        self.subtask_name = kwargs.pop("subtask_name", None)
+        self.suffix_prompt_genre = kwargs.pop("suffix_prompt_genre", None)
+
         # Parameters that control the length of the output
         self.max_length = kwargs.pop("max_length", 20)
         self.max_new_tokens = kwargs.pop("max_new_tokens", None)

@@ -15,7 +15,6 @@
 # limitations under the License.
 import copy  # noqa: I001
 import inspect
-import os
 import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
@@ -30,6 +29,7 @@ from torch.nn import functional as F
 from transformers.generation.candidate_generator import AssistantVocabTranslatorCache
 
 from .safe_logits import SelfAlignLogitsProcessor
+from .safety_utils import LogitAnalyzer
 from ..cache_utils import (
     Cache,
     DynamicCache,
@@ -717,6 +717,12 @@ class GenerationMixin:
         """
         # 0. concat input_ids with suffix
         full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
+        # 🔥only for this project, for better tracking results
+        dataset, subtask_name, suffix_prompt_genre = (
+            generation_config.dataset,
+            generation_config.subtask_name,
+            generation_config.suffix_prompt_genre,
+        )
 
         # init values
         pad_token_id = generation_config._pad_token_tensor
@@ -779,9 +785,14 @@ class GenerationMixin:
                 os.environ["TOKENIZERS_PARALLELISM"] = "0"
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
-        counter = 0
-        harmful_count = 0
         is_prefill = True
+        analyzer = LogitAnalyzer(
+            tokenizer=tokenizer,
+            input_ids=full_input_ids,
+            eval_input_ids=eval_input_ids,
+            suffix_prompt_genre=suffix_prompt_genre,
+        )
+
         while self._has_unfinished_sequences(
             this_peer_finished,
             synced_gpus,
@@ -831,16 +842,8 @@ class GenerationMixin:
             next_token_logits = next_token_logits.to(full_input_ids.device)
             eval_logits = eval_logits.to(full_input_ids.device)
 
-            eval_token = tokenizer.decode(eval_logits[0].argmax())
-            if "Yes" in eval_token:
-                print(f"--------------- step {counter} --------------------")
-                print("Current model input:")
-                print(tokenizer.decode(full_input_ids[0]))
-                print("DEBUG: Suffix prediction:\n", eval_token)
-                harmful_count += 1
-                print("DEBUG: harmful step count:\n", harmful_count)
+            analyzer.add_decoding_step(eval_logits, full_input_ids)
 
-            counter += 1
             # pre-process distribution
             next_token_scores = next_token_logits
             # TODO set threshold for how many steps eval suffix prompt say "yes" to harmful sequence
@@ -899,6 +902,7 @@ class GenerationMixin:
 
         if streamer is not None:
             streamer.end()
+        analyzer.write_file(input_ids, dataset, subtask_name, generation_config)
 
         if return_dict_in_generate:
             if self.config.is_encoder_decoder:
@@ -4847,10 +4851,19 @@ class GenerationMixin:
             if synced_gpus and this_peer_finished:
                 continue
 
-            # Copy is needed to avoid keeping a hanging ref
-            logits = model_outputs.logits[:, -1, :].to(
-                copy=True, dtype=torch.float32, device=input_ids.device
-            )
+            # Clone is needed to avoid keeping a hanging ref to outputs.logits which may be very large for first iteration
+            # (the clone itself is always small)
+            # .float() is needed to retain precision for later logits manipulations
+            next_token_logits = outputs.logits[:, -1, :].clone().float()
+            next_token_logits = next_token_logits.to(input_ids.device)
+            next_token_scores = nn.functional.log_softmax(
+                next_token_logits, dim=-1
+            )  # (batch_size * num_beams, vocab_size)
+
+            next_token_scores_processed = logits_processor(input_ids, next_token_scores)
+            next_token_scores = next_token_scores_processed + beam_scores[
+                :, None
+            ].expand_as(next_token_scores_processed)
 
             # b. Compute log probs -- get log probabilities from logits, process logits with processors (*e.g.*
             # `temperature`, ...), and add new logprobs to existing running logprobs scores.
