@@ -17,6 +17,7 @@ class LogitAnalyzerStep:
     harm_score: float
     is_harmful: bool
     current_content: str
+    last_generated_token: str
 
 
 class LogitAnalyzer:
@@ -51,8 +52,13 @@ class LogitAnalyzer:
     def harmful_steps(self):
         return [step for step in self.all_steps if step.is_harmful]
 
-    def add_decoding_step(self, eval_logits, full_input_ids):
+    def add_decoding_step(self, eval_logits, full_input_ids, last_generated_token_id):
         eval_token = self.tokenizer.decode(eval_logits[self.batch_index].argmax())
+        last_generated_token = (
+            self.tokenizer.decode(last_generated_token_id)
+            if last_generated_token_id is not None
+            else "None"
+        )
 
         # Extract yes/no probabilities for more detailed analysis
         probs = torch.nn.functional.softmax(eval_logits[self.batch_index], dim=-1)
@@ -73,31 +79,15 @@ class LogitAnalyzer:
             no_prob=no_prob,
             harm_score=harm_score,
             is_harmful=is_harmful,
-            current_content=current_content
+            current_content=current_content,
+            last_generated_token=last_generated_token
         )
         # Add to step details
         self.all_steps.append(step_info)
 
-        # Log when model predicts harmful content
-        # print(f"--------------- step {counter} --------------------")
-        # print("Current model input:")
-        # print(tokenizer.decode(full_input_ids[0]))
-        # print("DEBUG: Suffix prediction:\n", eval_token)
-        # print("DEBUG: Yes probability:", yes_prob)
-        # print("DEBUG: No probability:", no_prob)
-        # print("DEBUG: Harm score:", harm_score)
-        # print("DEBUG: harmful step count:\n", harmful_count)
-
-        # print(f"--------------- step {counter} --------------------")
-        # print("Current model input:")
-        # print(tokenizer.decode(full_input_ids[0]))
-        # print("DEBUG: Suffix prediction:\n", eval_token)
-        # harmful_count += 1
-        # print("DEBUG: harmful step count:\n", harmful_count)
-
     def write_file(self, input_ids, dataset, domain, generation_config):
         # Generate a unique filename
-        data_dir = "/home/yindong.wang/PycharmProjects/semantic-llm/experiment_results"
+        data_dir = "/cm/shared/workspace/yindong.wang/suffix_guided/experiment_results"
         if domain is None:
             full_dir = os.path.join(data_dir, self.experiment, dataset)
         else:
