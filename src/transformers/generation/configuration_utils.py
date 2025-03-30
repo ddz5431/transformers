@@ -421,6 +421,7 @@ class GenerationConfig(PushToHubMixin):
         self.suffix_prompt_genre = kwargs.pop("suffix_prompt_genre", None)
         self.save_results = kwargs.pop("save_results", False)
         self.n_shots = kwargs.pop("n_shots", 0)
+        self.suffix_prompt_idx = kwargs.pop("suffix_prompt_idx", None)
 
         # Parameters that control the length of the output
         self.max_length = kwargs.pop("max_length", 20)

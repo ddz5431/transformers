@@ -611,11 +611,13 @@ class GenerationMixin:
         # 0. concat input_ids with suffix
         full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
         # TODO 🔥only for this project, for better tracking results
-        dataset, subtask_name, suffix_prompt_genre = (
+        dataset, subtask_name, suffix_prompt_genre, suffix_prompt_index = (
             generation_config.dataset,
             generation_config.subtask_name,
             generation_config.suffix_prompt_genre,
+            generation_config.suffix_prompt_idx,
         )
+        save_results = generation_config.save_results
 
         # init values
         pad_token_id = generation_config._pad_token_tensor
@@ -678,12 +680,21 @@ class GenerationMixin:
                 os.environ["TOKENIZERS_PARALLELISM"] = "0"
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
+        n_shots = generation_config.n_shots
         is_prefill = True
         analyzer = LogitAnalyzer(
             tokenizer=tokenizer,
-            input_ids=full_input_ids,
+            input_ids=input_ids,
+            full_input_ids=full_input_ids,
             eval_input_ids=eval_input_ids,
             suffix_prompt_genre=suffix_prompt_genre,
+            n_shots=n_shots,
+        n_shots = generation_config.n_shots
+        model_name = self.name_or_path
+
+            n_shots=n_shots,
+            model_name=model_name,
+            suffix_prompt_idx=suffix_prompt_index
         )
 
         generated_token_id = None
