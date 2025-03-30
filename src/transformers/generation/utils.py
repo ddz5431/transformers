@@ -333,15 +333,21 @@ BeamSampleDecoderOnlyOutput = GenerateBeamDecoderOnlyOutput
 BeamSearchEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
 BeamSampleEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
 
-GreedySearchOutput = Union[GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput]
+GreedySearchOutput = Union[
+    GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput
+]
 SampleOutput = Union[SampleEncoderDecoderOutput, SampleDecoderOnlyOutput]
 BeamSearchOutput = Union[BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput]
 BeamSampleOutput = Union[BeamSampleEncoderDecoderOutput, BeamSampleDecoderOnlyOutput]
-ContrastiveSearchOutput = Union[ContrastiveSearchEncoderDecoderOutput, ContrastiveSearchDecoderOnlyOutput]
+ContrastiveSearchOutput = Union[
+    ContrastiveSearchEncoderDecoderOutput, ContrastiveSearchDecoderOnlyOutput
+]
 
 # Typing shortcuts
 GenerateNonBeamOutput = Union[GenerateDecoderOnlyOutput, GenerateEncoderDecoderOutput]
-GenerateBeamOutput = Union[GenerateBeamDecoderOnlyOutput, GenerateBeamEncoderDecoderOutput]
+GenerateBeamOutput = Union[
+    GenerateBeamDecoderOnlyOutput, GenerateBeamEncoderDecoderOutput
+]
 GenerateOutput = Union[GenerateNonBeamOutput, GenerateBeamOutput]
 
 
@@ -610,7 +616,6 @@ class GenerationMixin:
             generation_config.subtask_name,
             generation_config.suffix_prompt_genre,
         )
-        save_results = generation_config.save_results
 
         # init values
         pad_token_id = generation_config._pad_token_tensor
@@ -676,8 +681,7 @@ class GenerationMixin:
         is_prefill = True
         analyzer = LogitAnalyzer(
             tokenizer=tokenizer,
-            input_ids=input_ids,
-            full_input_ids=full_input_ids,
+            input_ids=full_input_ids,
             eval_input_ids=eval_input_ids,
             suffix_prompt_genre=suffix_prompt_genre,
         )
@@ -795,9 +799,7 @@ class GenerationMixin:
 
         if streamer is not None:
             streamer.end()
-
-        if save_results:
-            analyzer.write_file(input_ids, dataset, subtask_name, generation_config)
+        analyzer.write_file(input_ids, dataset, subtask_name, generation_config)
 
         if return_dict_in_generate:
             if self.config.is_encoder_decoder:
