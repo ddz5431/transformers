@@ -562,6 +562,28 @@ class GenerationMixin:
         model_inputs.pop("labels", None)
         return model_inputs
 
+    def _build_analyzer(self, tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, i=0):
+        return LogitAnalyzer(
+            tokenizer=tokenizer,
+            input_ids=input_ids,
+            full_input_ids=full_input_ids,
+            eval_input_ids=eval_input_ids,
+            suffix_prompt_genre=generation_config.suffix_prompt_genre,
+            suffix_prompt_idx=generation_config.suffix_prompt_idx,
+            model_name=self.name_or_path,
+            n_shots=generation_config.n_shots,
+            experiment=generation_config.experiment,
+            batch_index=i,
+        )
+
+    def _should_skip_sample(self, analyzer, generation_config, dataset, subtask_name):
+        if generation_config.save_results:
+            exists, path = analyzer.already_exists(dataset, subtask_name)
+            if exists:
+                logger.info(f"[SKIP] Sample already exists: {path}")
+                return True
+        return False
+
     def _self_align_decoding(
         self,
         input_ids: torch.LongTensor,
@@ -611,11 +633,12 @@ class GenerationMixin:
         # 0. concat input_ids with suffix
         full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
         # TODO 🔥only for this project, for better tracking results
-        dataset, subtask_name, suffix_prompt_genre, suffix_prompt_index = (
+        experiment, dataset, subtask_name, suffix_prompt_genre, suffix_prompt_index = (
+            generation_config.experiment,
             generation_config.dataset,
             generation_config.subtask_name,
             generation_config.suffix_prompt_genre,
-            generation_config.suffix_prompt_idx,
+            generation_config.suffix_prompt_idx
         )
         save_results = generation_config.save_results
 
@@ -680,22 +703,11 @@ class GenerationMixin:
                 os.environ["TOKENIZERS_PARALLELISM"] = "0"
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
-        n_shots = generation_config.n_shots
         is_prefill = True
-        analyzer = LogitAnalyzer(
-            tokenizer=tokenizer,
-            input_ids=input_ids,
-            full_input_ids=full_input_ids,
-            eval_input_ids=eval_input_ids,
-            suffix_prompt_genre=suffix_prompt_genre,
-            n_shots=n_shots,
-        n_shots = generation_config.n_shots
-        model_name = self.name_or_path
+        analyzer = self._build_analyzer(tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, 0)
 
-            n_shots=n_shots,
-            model_name=model_name,
-            suffix_prompt_idx=suffix_prompt_index
-        )
+        if self._should_skip_sample(analyzer, generation_config, dataset, subtask_name):
+            return
 
         generated_token_id = None
         while self._has_unfinished_sequences(

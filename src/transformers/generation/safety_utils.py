@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass, asdict
+from datetime import datetime
 from typing import List
 import logging
 
@@ -72,6 +73,7 @@ class LogitAnalyzer:
         self.no_tokens = ["No", " No", "no", " no"]
         self.yes_token_ids = self._get_token_ids(self.yes_tokens)
         self.no_token_ids = self._get_token_ids(self.no_tokens)
+        self.experiment = "debug-" + datetime.now().strftime("%Y-%m-%d")
 
         # Pre-compute harmful signals for each genre
         self.harmful_signals = {
