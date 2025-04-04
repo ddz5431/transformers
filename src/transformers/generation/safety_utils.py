@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass, asdict
-from datetime import datetime
 from typing import List
 import logging
 
@@ -215,8 +214,7 @@ class LogitAnalyzer:
         ).hexdigest()
 
         clean_config = {
-            k: v
-            for k, v in generation_config.to_dict().items()
+            k: v for k, v in generation_config.to_dict().items()
             if not k.startswith("_")
         }
 

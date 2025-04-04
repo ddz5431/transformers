@@ -371,6 +371,7 @@ class GenerationMixin:
     def prepare_inputs_for_generation(
         self,
         input_ids: torch.LongTensor,
+        eval_input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Cache] = None,
         attention_mask: Optional[torch.LongTensor] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
@@ -553,6 +554,9 @@ class GenerationMixin:
         if encoder_attention_mask is not None:
             model_inputs["attention_mask"] = encoder_attention_mask
 
+        if eval_input_ids is not None:
+            model_inputs["eval_input_ids"] = eval_input_ids
+
         # 7. Forward ALL kwargs that are uninitialized (e.g. `use_cache`).
         for key, value in kwargs.items():
             if key not in model_inputs:
@@ -562,7 +566,15 @@ class GenerationMixin:
         model_inputs.pop("labels", None)
         return model_inputs
 
-    def _build_analyzer(self, tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, i=0):
+    def _build_analyzer(
+        self,
+        tokenizer,
+        input_ids,
+        eval_input_ids,
+        full_input_ids,
+        generation_config,
+        i=0,
+    ):
         return LogitAnalyzer(
             tokenizer=tokenizer,
             input_ids=input_ids,
@@ -572,7 +584,7 @@ class GenerationMixin:
             suffix_prompt_idx=generation_config.suffix_prompt_idx,
             model_name=self.name_or_path,
             n_shots=generation_config.n_shots,
-            experiment=generation_config.experiment,
+            experiment=generation_config.experiment_name,
             batch_index=i,
         )
 
@@ -634,11 +646,11 @@ class GenerationMixin:
         full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
         # TODO 🔥only for this project, for better tracking results
         experiment, dataset, subtask_name, suffix_prompt_genre, suffix_prompt_index = (
-            generation_config.experiment,
+            generation_config.experiment_name,
             generation_config.dataset,
             generation_config.subtask_name,
             generation_config.suffix_prompt_genre,
-            generation_config.suffix_prompt_idx
+            generation_config.suffix_prompt_idx,
         )
         save_results = generation_config.save_results
 
@@ -704,7 +716,9 @@ class GenerationMixin:
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
         is_prefill = True
-        analyzer = self._build_analyzer(tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, 0)
+        analyzer = self._build_analyzer(
+            tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, 0
+        )
 
         if self._should_skip_sample(analyzer, generation_config, dataset, subtask_name):
             return
