@@ -578,8 +578,10 @@ class GenerationMixin:
         return LogitAnalyzer(
             tokenizer=tokenizer,
             input_ids=input_ids,
-            full_input_ids=full_input_ids,
             eval_input_ids=eval_input_ids,
+            full_input_ids=full_input_ids,
+            dataset=generation_config.dataset,
+            subtask=generation_config.subtask_name,
             suffix_prompt_genre=generation_config.suffix_prompt_genre,
             suffix_prompt_idx=generation_config.suffix_prompt_idx,
             model_name=self.name_or_path,
@@ -588,12 +590,15 @@ class GenerationMixin:
             batch_index=i,
         )
 
-    def _should_skip_sample(self, analyzer, generation_config, dataset, subtask_name):
-        if generation_config.save_results:
-            exists, path = analyzer.already_exists(dataset, subtask_name)
-            if exists:
-                logger.info(f"[SKIP] Sample already exists: {path}")
-                return True
+    def _should_skip_sample(self, analyzer, save_results):
+        if not save_results:
+            return False
+
+        exists, path = analyzer.already_exists()
+        if exists:
+            logger.info(f"[SKIP] Sample already exists: {path}")
+            return True
+
         return False
 
     def _self_align_decoding(
@@ -644,15 +649,6 @@ class GenerationMixin:
         """
         # 0. concat input_ids with suffix
         full_input_ids = torch.cat([input_ids, eval_input_ids], dim=1)
-        # TODO 🔥only for this project, for better tracking results
-        experiment, dataset, subtask_name, suffix_prompt_genre, suffix_prompt_index = (
-            generation_config.experiment_name,
-            generation_config.dataset,
-            generation_config.subtask_name,
-            generation_config.suffix_prompt_genre,
-            generation_config.suffix_prompt_idx,
-        )
-        save_results = generation_config.save_results
 
         # init values
         pad_token_id = generation_config._pad_token_tensor
@@ -702,6 +698,17 @@ class GenerationMixin:
         model_kwargs = self._get_initial_cache_position(full_input_ids, model_kwargs)
         logits_processor.append(SelfAlignLogitsProcessor(tokenizer))
 
+        analyzer = self._build_analyzer(
+            tokenizer,
+            input_ids,
+            eval_input_ids,
+            full_input_ids,
+            generation_config,
+            0,
+        )
+        if self._should_skip_sample(analyzer, generation_config.save_results):
+            return
+
         model_forward = self.__call__
         if isinstance(model_kwargs.get("past_key_values"), Cache):
             is_compileable = (
@@ -716,13 +723,6 @@ class GenerationMixin:
                 model_forward = self.get_compiled_call(generation_config.compile_config)
 
         is_prefill = True
-        analyzer = self._build_analyzer(
-            tokenizer, input_ids, eval_input_ids, full_input_ids, generation_config, 0
-        )
-
-        if self._should_skip_sample(analyzer, generation_config, dataset, subtask_name):
-            return
-
         generated_token_id = None
         while self._has_unfinished_sequences(
             this_peer_finished,
@@ -836,7 +836,9 @@ class GenerationMixin:
 
         if streamer is not None:
             streamer.end()
-        analyzer.write_file(input_ids, dataset, subtask_name, generation_config)
+
+        if generation_config.save_results:
+            analyzer.write_file(input_ids, generation_config)
 
         if return_dict_in_generate:
             if self.config.is_encoder_decoder:
