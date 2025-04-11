@@ -573,7 +573,6 @@ class GenerationMixin:
         eval_input_ids,
         full_input_ids,
         generation_config,
-        i=0,
     ):
         return LogitAnalyzer(
             tokenizer=tokenizer,
@@ -583,23 +582,40 @@ class GenerationMixin:
             dataset=generation_config.dataset,
             subtask=generation_config.subtask_name,
             suffix_prompt_genre=generation_config.suffix_prompt_genre,
-            suffix_prompt_idx=generation_config.suffix_prompt_idx,
+            suffix_prompt_index=generation_config.suffix_prompt_idx,
             model_name=self.name_or_path,
             n_shots=generation_config.n_shots,
             experiment=generation_config.experiment_name,
-            batch_index=i,
         )
 
-    def _should_skip_sample(self, analyzer, save_results):
+    def _should_skip_batch_samples(self, analyzer, save_results):
         if not save_results:
             return False
 
-        exists, path = analyzer.already_exists()
-        if exists:
-            logger.info(f"[SKIP] Sample already exists: {path}")
-            return True
+        skip_all = True
+        for batch_idx in range(analyzer.batch_size):
+            skip_this, file_path = self._should_skip_individual_sample(
+                analyzer, batch_idx
+            )
 
-        return False
+            if skip_this:
+                logger.info(
+                    f"Skipping batch item {batch_idx}, file already exists: {file_path}"
+                )
+            else:
+                skip_all = False
+
+        return skip_all
+
+    def _should_skip_individual_sample(self, analyzer, batch_idx):
+        try:
+            exists, file_path = analyzer.already_exists(batch_idx)
+            return exists, file_path
+        except Exception as e:
+            logger.error(
+                f"Error checking if file exists for batch item {batch_idx}: {e}"
+            )
+            return False, None
 
     def _self_align_decoding(
         self,
@@ -704,9 +720,9 @@ class GenerationMixin:
             eval_input_ids,
             full_input_ids,
             generation_config,
-            0,
         )
-        if self._should_skip_sample(analyzer, generation_config.save_results):
+
+        if self._should_skip_batch_samples(analyzer, generation_config.save_results):
             return
 
         model_forward = self.__call__
@@ -838,7 +854,7 @@ class GenerationMixin:
             streamer.end()
 
         if generation_config.save_results:
-            analyzer.write_file(input_ids, generation_config)
+            analyzer.write_files(input_ids, generation_config)
 
         if return_dict_in_generate:
             if self.config.is_encoder_decoder:
