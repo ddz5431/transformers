@@ -61,6 +61,7 @@ GENRE_CONFIG = {
     "negative_detection": {"target_signal": "no", "signal_polarity": -1},  # "Is X absent?" no=flagged
     "adversarial": {"target_signal": "no", "signal_polarity": -1},
     "negation_traps": {"target_signal": "no", "signal_polarity": -1},
+    "correctness": {"target_signal": "no", "signal_polarity": -1},  # "Is this correct?" no=error/flagged
 
     # Legacy names (for backward compatibility with existing experiments)
     "specific_harm": {"target_signal": "yes", "signal_polarity": 1},
