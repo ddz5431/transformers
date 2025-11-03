@@ -332,6 +332,7 @@ class SuperPointPreTrainedModel(PreTrainedModel):
     config_class = SuperPointConfig
     base_model_prefix = "superpoint"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     supports_gradient_checkpointing = False
 
     def _init_weights(self, module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm]) -> None:

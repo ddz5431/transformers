@@ -335,9 +335,9 @@ def add_fast_image_processor_to_doc(fast_image_processor_name: str, model_name: 
 
 def add_fast_image_processor_to_tests(fast_image_processor_name: str, model_name: str):
     """
-    Add the fast image processor to the image processing tests.
+    Add the fast image processor to the image processing small_tests.
     """
-    tests_path = REPO_PATH / "tests" / "models" / model_name
+    tests_path = REPO_PATH / "small_tests" / "models" / model_name
     test_file = tests_path / f"test_image_processing_{model_name}.py"
     if not os.path.exists(test_file):
         logger.warning(f"No test file found for {model_name}. Skipping.")

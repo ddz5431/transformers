@@ -23,7 +23,7 @@ from transformers.testing_utils import is_pipeline_test, nested_simplify, requir
 @is_pipeline_test
 @require_torch
 class ZeroShotAudioClassificationPipelineTests(unittest.TestCase):
-    # Deactivating auto tests since we don't have a good MODEL_FOR_XX mapping,
+    # Deactivating auto small_tests since we don't have a good MODEL_FOR_XX mapping,
     # and only CLAP would be there for now.
     # model_mapping = {CLAPConfig: CLAPModel}
 

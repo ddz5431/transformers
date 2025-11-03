@@ -373,7 +373,7 @@ class QuantoQuantizationOffloadTest(QuantoQuantizationTest):
 @unittest.skip(reason="Skipping test class because serialization is not supported yet")
 class QuantoQuantizationSerializationTest(QuantoQuantizationTest):
     """
-    Perform the same tests as in QuantoQuantizationTest but with a serialized model.
+    Perform the same small_tests as in QuantoQuantizationTest but with a serialized model.
     """
 
     def setUp(self):
@@ -406,7 +406,7 @@ class QuantoQuantizationSerializationTest(QuantoQuantizationTest):
 @unittest.skip(reason="Skipping test class because serialization is not supported yet")
 class QuantoQuantizationSerializationCudaTest(QuantoQuantizationTest):
     """
-    Perform the same tests as in QuantoQuantizationTest but with model on cuda
+    Perform the same small_tests as in QuantoQuantizationTest but with model on cuda
     """
 
     device_map = "cuda:0"

@@ -85,11 +85,11 @@ class ObjectDetectionPipelineTests(unittest.TestCase):
             processor=processor,
             torch_dtype=torch_dtype,
         )
-        return object_detector, ["./tests/fixtures/tests_samples/COCO/000000039769.png"]
+        return object_detector, ["./small_tests/fixtures/tests_samples/COCO/000000039769.png"]
 
     def run_pipeline_test(self, object_detector, examples):
         self._load_dataset()
-        outputs = object_detector("./tests/fixtures/tests_samples/COCO/000000039769.png", threshold=0.0)
+        outputs = object_detector("./small_tests/fixtures/tests_samples/COCO/000000039769.png", threshold=0.0)
 
         self.assertGreater(len(outputs), 0)
         for detected_object in outputs:
@@ -103,7 +103,7 @@ class ObjectDetectionPipelineTests(unittest.TestCase):
             )
 
         batch = [
-            Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+            Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
             "http://images.cocodataset.org/val2017/000000039769.jpg",
             # RGBA
             self._dataset[0]["image"],

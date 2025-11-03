@@ -749,6 +749,7 @@ class BeitPreTrainedModel(PreTrainedModel):
 
     config_class = BeitConfig
     base_model_prefix = "beit"
+    input_modalities = "image"
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
     _no_split_modules = ["BeitLayer"]

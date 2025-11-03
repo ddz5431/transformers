@@ -25,7 +25,7 @@ import requests
 from huggingface_hub.file_download import hf_hub_url, http_get
 from requests import ConnectTimeout, ReadTimeout
 
-from tests.pipelines.test_pipelines_document_question_answering import INVOICE_URL
+from small_tests.pipelines.test_pipelines_document_question_answering import INVOICE_URL
 from transformers import is_torch_available, is_vision_available
 from transformers.image_utils import (
     ChannelDimension,
@@ -859,7 +859,7 @@ class LoadImageTester(unittest.TestCase):
             load_image(INVOICE_URL, timeout=0.001)
 
     def test_load_img_local(self):
-        img = load_image("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        img = load_image("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         img_arr = np.array(img)
 
         self.assertEqual(

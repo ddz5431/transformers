@@ -11,7 +11,7 @@ on:
       - ci-*
     paths:
       - "src/**"
-      - "tests/**"
+      - "../../../small_tests/**"
       - ".github/**"
       - "templates/**"
       - "utils/**"
@@ -90,21 +90,21 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Fetch the tests to run
+      - name: Fetch the small_tests to run
         working-directory: /transformers
         # TODO: add `git-python` in the docker images
         run: |
           pip install --upgrade git-python
           python3 utils/tests_fetcher.py --diff_with_last_commit | tee test_preparation.txt
 
-      - name: Report fetched tests
+      - name: Report fetched small_tests
         uses: actions/upload-artifact@v4
         with:
           name: test_fetched
           path: /transformers/test_preparation.txt
 
       - id: set-matrix
-        name: Organize tests into models
+        name: Organize small_tests into models
         working-directory: /transformers
         # The `keys` is used as GitHub actions matrix for jobs, i.e. `models/bert`, `tokenization`, `pipeline`, etc.
         # The `test_map` is used to get the actual identified test files under each key.
@@ -123,7 +123,7 @@ jobs:
           echo "test_map=$test_map" >> $GITHUB_OUTPUT
 
   run_tests_single_gpu:
-    name: Model tests
+    name: Model small_tests
     needs: setup
     # `dummy` means there is no test to run
     if: contains(fromJson(needs.setup.outputs.matrix), 'dummy') != true
@@ -218,7 +218,7 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Run all non-slow selected tests on GPU
+      - name: Run all non-slow selected small_tests on GPU
         working-directory: /transformers
         run: |
           python3 -m pytest -n 2 --dist=loadfile -v --make-reports=${{ env.machine_type }}_tests_gpu_${{ matrix.folders }} ${{ fromJson(needs.setup.outputs.test_map)[matrix.folders] }}
@@ -236,7 +236,7 @@ jobs:
           path: /transformers/reports/${{ env.machine_type }}_tests_gpu_${{ matrix.folders }}
 
   run_tests_multi_gpu:
-    name: Model tests
+    name: Model small_tests
     needs: setup
     # `dummy` means there is no test to run
     if: contains(fromJson(needs.setup.outputs.matrix), 'dummy') != true
@@ -331,7 +331,7 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Run all non-slow selected tests on GPU
+      - name: Run all non-slow selected small_tests on GPU
         env:
           MKL_SERVICE_FORCE_INTEL: 1
         working-directory: /transformers
@@ -351,7 +351,7 @@ jobs:
           path: /transformers/reports/${{ env.machine_type }}_tests_gpu_${{ matrix.folders }}
 
   run_tests_torch_cuda_extensions_single_gpu:
-    name: Torch CUDA extension tests
+    name: Torch CUDA extension small_tests
     needs: setup
     if: contains(fromJson(needs.setup.outputs.matrix), 'deepspeed') || contains(fromJson(needs.setup.outputs.matrix), 'extended')
     strategy:
@@ -442,9 +442,9 @@ jobs:
         working-directory: /workspace/transformers
         run: pip freeze
 
-      - name: Run all non-slow selected tests on GPU
+      - name: Run all non-slow selected small_tests on GPU
         working-directory: /workspace/transformers
-        # TODO: Here we pass all tests in the 2 folders for simplicity. It's better to pass only the identified tests.
+        # TODO: Here we pass all small_tests in the 2 folders for simplicity. It's better to pass only the identified small_tests.
         run: |
           python -m pytest -n 1 --dist=loadfile -v --make-reports=${{ env.machine_type }}_run_torch_cuda_extensions_gpu_test_reports tests/deepspeed tests/extended
 
@@ -461,7 +461,7 @@ jobs:
           path: /workspace/transformers/reports/${{ env.machine_type }}_run_torch_cuda_extensions_gpu_test_reports
 
   run_tests_torch_cuda_extensions_multi_gpu:
-    name: Torch CUDA extension tests
+    name: Torch CUDA extension small_tests
     needs: setup
     if: contains(fromJson(needs.setup.outputs.matrix), 'deepspeed') || contains(fromJson(needs.setup.outputs.matrix), 'extended')
     strategy:
@@ -552,9 +552,9 @@ jobs:
         working-directory: /workspace/transformers
         run: pip freeze
 
-      - name: Run all non-slow selected tests on GPU
+      - name: Run all non-slow selected small_tests on GPU
         working-directory: /workspace/transformers
-        # TODO: Here we pass all tests in the 2 folders for simplicity. It's better to pass only the identified tests.
+        # TODO: Here we pass all small_tests in the 2 folders for simplicity. It's better to pass only the identified small_tests.
         run: |
           python -m pytest -n 1 --dist=loadfile -v --make-reports=${{ env.machine_type }}_run_torch_cuda_extensions_gpu_test_reports tests/deepspeed tests/extended
 

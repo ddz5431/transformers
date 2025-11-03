@@ -582,7 +582,7 @@ class CausalLMModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterM
 
     def test_causal_lm_can_accept_training_kwargs(self):
         if not getattr(self.model_tester, "is_training", False):
-            self.skipTest(reason="ModelTester is not configured to run training tests")
+            self.skipTest(reason="ModelTester is not configured to run training small_tests")
 
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
 

@@ -778,6 +778,7 @@ class Data2VecAudioPreTrainedModel(PreTrainedModel):
     config_class = Data2VecAudioConfig
     base_model_prefix = "data2vec_audio"
     main_input_name = "input_values"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_flash_attn_2 = True
     _supports_sdpa = True

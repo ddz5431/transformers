@@ -837,7 +837,7 @@ def create_causal_mask(
     mask_interface = ALL_MASK_ATTENTION_FUNCTIONS[config._attn_implementation]
 
     # Do not allow skip if we are compiling (this is to match BC)
-    # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
+    # TODO: cyril -> probably revisit and remove this, but a lot of small_tests rely on it
     if _is_torch_xpu_available:
         allow_is_causal_skip = True
     else:
@@ -1017,7 +1017,7 @@ def create_sliding_window_causal_mask(
     mask_interface = ALL_MASK_ATTENTION_FUNCTIONS[config._attn_implementation]
 
     # Do not allow skip if we are compiling (this is to match BC)
-    # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
+    # TODO: cyril -> probably revisit and remove this, but a lot of small_tests rely on it
     allow_is_causal_skip = not getattr(past_key_values, "is_compileable", False)
 
     # Allow slight deviations from causal mask
@@ -1139,7 +1139,7 @@ def create_chunked_causal_mask(
     mask_interface = ALL_MASK_ATTENTION_FUNCTIONS[config._attn_implementation]
 
     # Do not allow skip if we are compiling (this is to match BC)
-    # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
+    # TODO: cyril -> probably revisit and remove this, but a lot of small_tests rely on it
     allow_is_causal_skip = not getattr(past_key_values, "is_compileable", False)
 
     # Allow slight deviations from causal mask

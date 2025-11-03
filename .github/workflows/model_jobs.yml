@@ -118,7 +118,7 @@ jobs:
           echo "$machine_type"
           echo "machine_type=$machine_type" >> $GITHUB_ENV
 
-      - name: Run all tests on GPU
+      - name: Run all small_tests on GPU
         working-directory: /transformers
         run: python3 -m pytest -rsfE -v --make-reports=${{ env.machine_type }}_${{ inputs.report_name_prefix }}_${{ matrix.folders }}_test_reports tests/${{ matrix.folders }}
 

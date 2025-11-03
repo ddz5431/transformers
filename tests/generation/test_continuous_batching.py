@@ -208,7 +208,7 @@ class ContinuousBatchingTest(unittest.TestCase):
                         f"Exp:{repr(expected_output)}\nOut:{repr(cb_decoded_output)}",
                     )
 
-    # Eager tests
+    # Eager small_tests
     @require_torch_gpu
     @slow
     def test_continuous_batching_parity_llama_eager(self) -> None:
@@ -254,7 +254,7 @@ class ContinuousBatchingTest(unittest.TestCase):
         }).get_expectation()  # fmt: skip
         self._continuous_batching_parity("openai/gpt-oss-20b", "eager_paged", expected_outputs)
 
-    # SDPA tests
+    # SDPA small_tests
     @require_torch_gpu
     @slow
     def test_continuous_batching_parity_llama_sdpa(self) -> None:

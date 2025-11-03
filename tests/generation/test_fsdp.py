@@ -146,7 +146,7 @@ class TestFSDPGeneration(TestCasePlus):
 if __name__ == "__main__":
     # The script below is meant to be run under torch.distributed, on a machine with multiple GPUs:
     #
-    # PYTHONPATH="src" python -m torch.distributed.run --nproc_per_node 2 --output_dir output_dir ./tests/generation/test_fsdp.py --fsdp
+    # PYTHONPATH="src" python -m torch.distributed.run --nproc_per_node 2 --output_dir output_dir ./small_tests/generation/test_fsdp.py --fsdp
 
     class CLIArgs(argparse.Namespace):
         fsdp: bool

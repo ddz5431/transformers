@@ -614,7 +614,7 @@ Cookiecutterはおそらくモデル用のテストファイルを自動的に�
 このテストファイルを実行して、すべての一般的なテストがパスすることを確認してください：
 
 ```bash
-pytest tests/models/brand_new_bert/test_modeling_brand_new_bert.py
+pytest small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py
 ```
 
 すべての一般的なテストを修正したら、今度は実行したすべての素晴らしい作業が適切にテストされていることを確認することが非常に重要です。これにより、
@@ -625,7 +625,7 @@ pytest tests/models/brand_new_bert/test_modeling_brand_new_bert.py
 まず、統合テストを追加する必要があります。これらの統合テストは、基本的にはデバッグスクリプトと同じことを行います。これらのモデルテストのテンプレートはCookiecutterによって既に追加されており、「BrandNewBertModelIntegrationTests」と呼ばれています。このテストを記入するだけです。これらのテストが合格していることを確認するには、次のコマンドを実行します。
 
 ```bash
-RUN_SLOW=1 pytest -sv tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
+RUN_SLOW=1 pytest -sv small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
 ```
 
 <Tip>

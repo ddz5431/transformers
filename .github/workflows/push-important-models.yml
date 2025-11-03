@@ -1,4 +1,4 @@
-name: Slow tests on important models (on Push - A10)
+name: Slow small_tests on important models (on Push - A10)
 
 on:
   push:

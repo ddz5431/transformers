@@ -734,6 +734,7 @@ class TableTransformerPreTrainedModel(PreTrainedModel):
     config_class = TableTransformerConfig
     base_model_prefix = "model"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     _no_split_modules = [
         r"TableTransformerConvEncoder",
         r"TableTransformerEncoderLayer",

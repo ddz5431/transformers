@@ -38,7 +38,7 @@ rendered properly in your Markdown viewer.
    - [self-hosted runner](https://github.com/huggingface/transformers/tree/main/.github/workflows/self-scheduled.yml): GPUで `tests` と `examples` の通常のテストと遅いテストを実行します。
 
 ```bash
-RUN_SLOW=1 pytest tests/
+RUN_SLOW=1 pytest small_tests/
 RUN_SLOW=1 pytest examples/
 ```
     結果は[here](https://github.com/huggingface/transformers/actions)で観察できます。
@@ -67,7 +67,7 @@ make test
 後者は次のように定義されることに注意してください。
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/
 ```
 
 以下は、pytestに渡す設定情報です。
@@ -89,7 +89,7 @@ pytest --collect-only -q
 指定されたテスト ファイルのすべてのテスト:
 
 ```bash
-pytest tests/test_optimization.py --collect-only -q
+pytest small_tests/test_optimization.py --collect-only -q
 ```
 
 ### Run a specific test module
@@ -97,7 +97,7 @@ pytest tests/test_optimization.py --collect-only -q
 個別のテスト モジュールを実行するには:
 
 ```bash
-pytest tests/utils/test_logging.py
+pytest small_tests/utils/test_logging.py
 ```
 
 ### Run specific tests
@@ -106,7 +106,7 @@ pytest tests/utils/test_logging.py
 
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest::test_adam_w
+pytest small_tests/test_optimization.py::OptimizationTest::test_adam_w
 ```
 
 テストの実行方法:
@@ -118,7 +118,7 @@ pytest tests/test_optimization.py::OptimizationTest::test_adam_w
 ファイルに複数のクラスが含まれている場合は、特定のクラスのテストのみを実行することを選択できます。例えば：
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest
+pytest small_tests/test_optimization.py::OptimizationTest
 ```
 
 テストクラス内のすべてのテストを実行します。
@@ -126,7 +126,7 @@ pytest tests/test_optimization.py::OptimizationTest
 前述の通り、`OptimizationTest` クラスに含まれるテストを実行するには、次のコマンドを実行できます：
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest --collect-only -q
+pytest small_tests/test_optimization.py::OptimizationTest --collect-only -q
 ```
 
 キーワード式を使用してテストを実行できます。
@@ -134,7 +134,7 @@ pytest tests/test_optimization.py::OptimizationTest --collect-only -q
 名前に `adam` が含まれるテストのみを実行するには：
 
 ```bash
-pytest -k adam tests/test_optimization.py
+pytest -k adam small_tests/test_optimization.py
 ```
 
 `and`および`or`は、すべてのキーワードが一致するか、いずれかを示すために使用できます。`not`は否定するために使用できます。
@@ -142,20 +142,20 @@ pytest -k adam tests/test_optimization.py
 `adam`という名前を含むテストを除いてすべてのテストを実行するには：
 
 ```bash
-pytest -k "not adam" tests/test_optimization.py
+pytest -k "not adam" small_tests/test_optimization.py
 ```
 
 
 以下は、提供されたテキストの日本語訳です。
 
 ```bash
-pytest -k "ada and not adam" tests/test_optimization.py
+pytest -k "ada and not adam" small_tests/test_optimization.py
 ```
 
 たとえば、`test_adafactor`と`test_adam_w`の両方を実行するには、以下のコマンドを使用できます:
 
 ```bash
-pytest -k "test_adam_w or test_adam_w" tests/test_optimization.py
+pytest -k "test_adam_w or test_adam_w" small_tests/test_optimization.py
 ```
 
 注意: ここでは、`or` を使用しています。キーワードのいずれか一つが一致すれば、両方を含めるためです。
@@ -163,7 +163,7 @@ pytest -k "test_adam_w or test_adam_w" tests/test_optimization.py
 両方のパターンを含むテストのみを含めたい場合は、`and` を使用してください。
 
 ```bash
-pytest -k "test and ada" tests/test_optimization.py
+pytest -k "test and ada" small_tests/test_optimization.py
 ```
 
 ### Run `accelerate` tests
@@ -171,7 +171,7 @@ pytest -k "test and ada" tests/test_optimization.py
 時々、モデルに対して `accelerate` テストを実行する必要があります。たとえば、`OPT` 実行に対してこれらのテストを実行したい場合、コマンドに `-m accelerate_tests` を追加するだけで済みます：
 
 ```bash
-RUN_SLOW=1 pytest -m accelerate_tests tests/models/opt/test_modeling_opt.py
+RUN_SLOW=1 pytest -m accelerate_tests small_tests/models/opt/test_modeling_opt.py
 ```
 
 ### Run documentation tests
@@ -261,7 +261,7 @@ looponfailroots = transformers tests
 特定のテストモジュールを除外してすべてのテストモジュールを実行したい場合、実行するテストの明示的なリストを指定することができます。例えば、`test_modeling_*.py` テストを除外してすべてを実行するには次のようにします：
 
 ```bash
-pytest *ls -1 tests/*py | grep -v test_modeling*
+pytest *ls -1 small_tests/*py | grep -v test_modeling*
 ```
 
 ### Clearing state
@@ -269,7 +269,7 @@ pytest *ls -1 tests/*py | grep -v test_modeling*
 CIビルドおよび速度に対する隔離が重要な場合（キャッシュに対して）、キャッシュをクリアする必要があります：
 
 ```bash
-pytest --cache-clear tests
+pytest --cache-clear small_tests
 ```
 
 ### Running tests in parallel
@@ -295,7 +295,7 @@ pip install pytest-flakefinder
 そして、すべてのテストを複数回実行します (デフォルトでは 50 回)。
 
 ```bash
-pytest --flake-finder --flake-runs=5 tests/test_failing_test.py
+pytest --flake-finder --flake-runs=5 small_tests/test_failing_test.py
 ```
 
 <Tip>
@@ -325,7 +325,7 @@ pip install pytest-random-order
 
 
 ```bash
-pytest tests
+pytest small_tests
 [...]
 Using --random-order-bucket=module
 Using --random-order-seed=573663
@@ -344,7 +344,7 @@ Using --random-order-seed=573663
 
 
 ```bash
-pytest --random-order-bucket=none tests/test_a.py tests/test_c.py tests/test_b.py
+pytest --random-order-bucket=none small_tests/test_a.py small_tests/test_c.py small_tests/test_b.py
 ```
 
 すべてのテストのシャッフルを無効にするには:
@@ -382,7 +382,7 @@ pytest -p no:sugar
 
 
 ```bash
-pytest --pspec tests/test_optimization.py
+pytest --pspec small_tests/test_optimization.py
 ```
 
 
@@ -404,7 +404,7 @@ pytest --instafail
 GPU が有効な設定で、CPU のみモードでテストするには、`CUDA_VISIBLE_DEVICES=""`を追加します。
 
 ```bash
-CUDA_VISIBLE_DEVICES="" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="" pytest small_tests/utils/test_logging.py
 ```
 
 
@@ -412,7 +412,7 @@ CUDA_VISIBLE_DEVICES="" pytest tests/utils/test_logging.py
 2 番目の GPU GPU `0` と `1` がある場合は、次を実行できます。
 
 ```bash
-CUDA_VISIBLE_DEVICES="1" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="1" pytest small_tests/utils/test_logging.py
 ```
 
 これは、異なるGPUで異なるタスクを実行したい場合に便利です。
@@ -488,7 +488,7 @@ n_gpu = get_gpu_count()  # works with torch and tf
 特定のtorchデバイスでテストスイートを実行するには、`TRANSFORMERS_TEST_DEVICE="$device"` を追加します。ここで `$device` は対象のバックエンドです。例えば、CPUでテストするには以下のようにします：
 
 ```bash
-TRANSFORMERS_TEST_DEVICE="cpu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_DEVICE="cpu" pytest small_tests/utils/test_logging.py
 ```
 
 この変数は、`mps`などのカスタムまたはあまり一般的ではない PyTorch バックエンドをテストするのに役立ちます。また、特定の GPU をターゲットにしたり、CPU 専用モードでテストしたりすることで、`CUDA_VISIBLE_DEVICES`と同じ効果を達成するために使用することもできます。
@@ -496,7 +496,7 @@ TRANSFORMERS_TEST_DEVICE="cpu" pytest tests/utils/test_logging.py
 特定のデバイスでは、初めて「torch」をインポートした後、追加のインポートが必要になります。これは、環境変数 `TRANSFORMERS_TEST_BACKEND` を使用して指定できます。
 
 ```bash
-TRANSFORMERS_TEST_BACKEND="torch_npu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_BACKEND="torch_npu" pytest small_tests/utils/test_logging.py
 ```
 
 ### Distributed training
@@ -513,7 +513,7 @@ TRANSFORMERS_TEST_BACKEND="torch_npu" pytest tests/utils/test_logging.py
 これらのテストを実行するには、少なくとも2つのGPUが必要です：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
+CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv small_tests/test_trainer_distributed.py
 ```
 
 ### Output capture
@@ -525,13 +525,13 @@ CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
 これらのテストを実行するには少なくとも2つのGPUが必要です：
 
 ```bash
-pytest -s tests/utils/test_logging.py
+pytest -s small_tests/utils/test_logging.py
 ```
 
 テスト結果を JUnit 形式の出力に送信するには:
 
 ```bash
-py.test tests --junitxml=result.xml
+py.test small_tests --junitxml=result.xml
 ```
 
 ### Color control
@@ -540,7 +540,7 @@ py.test tests --junitxml=result.xml
 
 
 ```bash
-pytest --color=no tests/utils/test_logging.py
+pytest --color=no small_tests/utils/test_logging.py
 ```
 
 ### Sending test report to online pastebin service
@@ -549,7 +549,7 @@ pytest --color=no tests/utils/test_logging.py
 
 
 ```bash
-pytest --pastebin=failed tests/utils/test_logging.py
+pytest --pastebin=failed small_tests/utils/test_logging.py
 ```
 
 これにより、テスト実行情報がリモートのPasteサービスに送信され、各エラーに対してURLが提供されます。通常通りテストを選択するか、たとえば特定のエラーのみを送信したい場合は `-x` を追加で指定できます。
@@ -558,7 +558,7 @@ pytest --pastebin=failed tests/utils/test_logging.py
 
 
 ```bash
-pytest --pastebin=all tests/utils/test_logging.py
+pytest --pastebin=all small_tests/utils/test_logging.py
 ```
 
 ## Writing tests
@@ -595,13 +595,13 @@ class TestMathUnitTest(unittest.TestCase):
 そして、`negative` と `integer` パラメータのセットのみを実行することもできます:
 
 ```bash
-pytest -k "negative and integer" tests/test_mytest.py
+pytest -k "negative and integer" small_tests/test_mytest.py
 ```
 
 または、`Negative`のサブテストを除くすべての場合、次のようになります。
 
 ```bash
-pytest -k "not negative" tests/test_mytest.py
+pytest -k "not negative" small_tests/test_mytest.py
 ```
 
 `-k` フィルターを使用することに加えて、各サブテストの正確な名前を調べ、その正確な名前を使用して任意のサブテストまたはすべてのサブテストを実行することができます。
@@ -841,7 +841,7 @@ def test_feature_x():
 import pytest
 
 if not pytest.config.getoption("--custom-flag"):
-    pytest.skip("--custom-flag is missing, skipping tests", allow_module_level=True)
+    pytest.skip("--custom-flag is missing, skipping small_tests", allow_module_level=True)
 ```
 
 または `xfail` の方法:
@@ -897,7 +897,7 @@ def test_integration_foo():
 テストが`@slow`としてマークされたら、そのようなテストを実行するには、環境変数 `RUN_SLOW=1`を設定します。例:
 
 ```bash
-RUN_SLOW=1 pytest tests
+RUN_SLOW=1 pytest small_tests
 ```
 
 `@parameterized` のようなデコレータはテスト名を書き換えるため、`@slow` および他のスキップデコレータ `@require_*` は正しく動作するためには、最後にリストアップする必要があります。以下は正しい使用例の一例です：
@@ -927,7 +927,7 @@ def test_integration_foo():
 
 
 ```bash
-grep tiny tests examples
+grep tiny small_tests examples
 ```
 
 [スクリプトの例](https://github.com/huggingface/transformers/tree/main/scripts/fsmt/fsmt-make-tiny-model.py)があり、これにより tiny-wmt19-en-de のような小さなモデルが作成されます。特定のモデルのアーキテクチャに簡単に調整できます。
@@ -1146,7 +1146,7 @@ tf.random.set_seed(seed)
 警告が発生した時点でデバッガーを開始するには、次の手順を実行します。
 
 ```bash
-pytest tests/utils/test_logging.py -W error::UserWarning --pdb
+pytest small_tests/utils/test_logging.py -W error::UserWarning --pdb
 ```
 
 ## Working with github actions workflows

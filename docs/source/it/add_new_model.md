@@ -628,7 +628,7 @@ necessario implementare dei tests. Il Cookiecutter dovrebbe fornire automaticame
 di solito nella folder `tests/test_modeling_brand_new_bert.py`. Provate questo per verificare l'ok nei test piu comuni:
 
 ```bash
-pytest tests/test_modeling_brand_new_bert.py
+pytest small_tests/test_modeling_brand_new_bert.py
 ```
 
 Una volta sistemati i test comuni, bisogna assicurarsi che il vostro lavoro sia correttamente testato cosicchè:
@@ -641,7 +641,7 @@ debug usati precedentemente. Un template per questi tests esiste gia nel Cookiec
 voi dovrete solo completarlo. Una volta che questi tests sono OK, provate:
 
 ```bash
-RUN_SLOW=1 pytest -sv tests/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
+RUN_SLOW=1 pytest -sv small_tests/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
 ```
 
 <Tip>

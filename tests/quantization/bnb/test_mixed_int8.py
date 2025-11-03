@@ -170,7 +170,7 @@ class MixedInt8Test(BaseMixedInt8Test):
         config = AutoConfig.from_pretrained(model_id, revision="72e5f594ce36f9cabfa2a9fd8f58b491eb467ee7")
         with init_empty_weights():
             model = MptForCausalLM(config)
-        # The order of the keys does not matter, so we sort them before comparing, same for the other tests.
+        # The order of the keys does not matter, so we sort them before comparing, same for the other small_tests.
         self.assertEqual(get_keys_to_not_convert(model).sort(), ["lm_head", "transformer.wte"].sort())
 
         model_id = "Salesforce/blip2-opt-2.7b"
@@ -678,7 +678,7 @@ class MixedInt8TestMultiGpu(BaseMixedInt8Test):
 
     def test_multi_gpu_loading(self):
         r"""
-        This tests that the model has been loaded and can be used correctly on a multi-GPU setup.
+        This small_tests that the model has been loaded and can be used correctly on a multi-GPU setup.
         Let's just try to load a model on 2 GPUs and see if it works. The model we test has ~2GB of total, 3GB should suffice
         """
         device_map = {

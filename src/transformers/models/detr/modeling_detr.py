@@ -791,6 +791,7 @@ class DetrPreTrainedModel(PreTrainedModel):
     config_class = DetrConfig
     base_model_prefix = "model"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     _no_split_modules = [r"DetrConvEncoder", r"DetrEncoderLayer", r"DetrDecoderLayer"]
 
     def _init_weights(self, module):

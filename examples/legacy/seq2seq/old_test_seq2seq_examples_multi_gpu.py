@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# as due to their complexity multi-gpu tests could impact other tests, and to aid debug we have those in a separate module.
+# as due to their complexity multi-gpu small_tests could impact other small_tests, and to aid debug we have those in a separate module.
 
 import os
 import sys

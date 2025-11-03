@@ -44,7 +44,7 @@ else:
 @is_pipeline_test
 @require_vision
 class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
-    # Deactivating auto tests since we don't have a good MODEL_FOR_XX mapping,
+    # Deactivating auto small_tests since we don't have a good MODEL_FOR_XX mapping,
     # and only CLIP would be there for now.
     # model_mapping = {CLIPConfig: CLIPModel}
 
@@ -61,12 +61,12 @@ class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
     #     )
 
     #     # test with a raw waveform
-    #     image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
-    #     image2 = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+    #     image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
+    #     image2 = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
     #     return image_classifier, [image, image2]
 
     # def run_pipeline_test(self, pipe, examples):
-    #     image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+    #     image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
     #     outputs = pipe(image, candidate_labels=["A", "B"])
     #     self.assertEqual(outputs, {"text": ANY(str)})
 
@@ -78,7 +78,7 @@ class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
         image_classifier = pipeline(
             model="hf-internal-testing/tiny-random-clip-zero-shot-image-classification", torch_dtype=torch_dtype
         )
-        image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         output = image_classifier(image, candidate_labels=["a", "b", "c"])
 
         # The floating scores are so close, we enter floating error approximation and the order is not guaranteed across
@@ -196,7 +196,7 @@ class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
             model="openai/clip-vit-base-patch32",
         )
         # This is an image of 2 cats with remotes and no planes
-        image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         output = image_classifier(image, candidate_labels=["cat", "plane", "remote"])
 
         self.assertEqual(
@@ -260,7 +260,7 @@ class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
             model="google/siglip-base-patch16-224",
         )
         # This is an image of 2 cats with remotes and no planes
-        image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         output = image_classifier(image, candidate_labels=["2 cats", "a plane", "a remote"])
 
         self.assertEqual(
@@ -294,7 +294,7 @@ class ZeroShotImageClassificationPipelineTests(unittest.TestCase):
             model="Salesforce/blip2-itm-vit-g",
         )
         # This is an image of 2 cats with remotes and no planes
-        image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         output = image_classifier(
             image,
             candidate_labels=["2 cats", "a plane", "a remote"],

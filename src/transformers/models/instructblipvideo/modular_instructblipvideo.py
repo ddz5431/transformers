@@ -172,11 +172,11 @@ class InstructBlipVideoConfig(PretrainedConfig):
 
 
 class InstructBlipVideoPreTrainedModel(InstructBlipPreTrainedModel):
-    pass
+    input_modalities = ["video", "text"]
 
 
 class InstructBlipVideoVisionModel(InstructBlipVisionModel):
-    pass
+    input_modalities = "video"
 
 
 class InstructBlipVideoQFormerModel(InstructBlipQFormerModel):

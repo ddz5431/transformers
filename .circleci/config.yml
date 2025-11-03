@@ -23,7 +23,7 @@ jobs:
                 else
                     echo "The CI is running under $CIRCLE_PROJECT_USERNAME personal account. Please follow https://support.circleci.com/hc/en-us/articles/360008097173-Troubleshooting-why-pull-requests-are-not-triggering-jobs-on-my-organization- to fix it."; exit -1
                 fi
-    # Fetch the tests to run
+    # Fetch the small_tests to run
     fetch_tests:
         working_directory: ~/transformers
         docker:
@@ -69,7 +69,7 @@ jobs:
                     python utils/process_test_artifacts.py
 
             # To avoid too long generated_config.yaml on the continuation orb, we pass the links to the artifacts as parameters.
-            # Otherwise the list of tests was just too big. Explicit is good but for that it was a limitation.
+            # Otherwise the list of small_tests was just too big. Explicit is good but for that it was a limitation.
             # We used:
 
             # https://circleci.com/docs/api/v2/index.html#operation/getJobArtifacts : to get the job artifacts
@@ -83,7 +83,7 @@ jobs:
                 parameters:  test_preparation/transformed_artifacts.json
                 configuration_path: test_preparation/generated_config.yml
 
-    # To run all tests for the nightly build
+    # To run all small_tests for the nightly build
     fetch_all_tests:
         working_directory: ~/transformers
         docker:
@@ -121,7 +121,7 @@ jobs:
                     python utils/process_test_artifacts.py
 
             # To avoid too long generated_config.yaml on the continuation orb, we pass the links to the artifacts as parameters.
-            # Otherwise the list of tests was just too big. Explicit is good but for that it was a limitation.
+            # Otherwise the list of small_tests was just too big. Explicit is good but for that it was a limitation.
             # We used:
 
             # https://circleci.com/docs/api/v2/index.html#operation/getJobArtifacts : to get the job artifacts
@@ -153,8 +153,8 @@ jobs:
             - store_artifacts:
                   path: ~/transformers/installed.txt
             - run: python -c "from transformers import *" || (echo '🚨 import failed, this means you introduced unprotected imports! 🚨'; exit 1)
-            - run: ruff check examples tests src utils
-            - run: ruff format examples tests src utils --check
+            - run: ruff check examples small_tests src utils
+            - run: ruff format examples small_tests src utils --check
             - run: python utils/custom_init_isort.py --check_only
             - run: python utils/sort_auto_mappings.py --check_only
             - run: python utils/check_doc_toc.py

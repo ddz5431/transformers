@@ -19,7 +19,7 @@ from os.path import dirname
 
 from parameterized import parameterized
 
-from tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
+from small_tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
 from transformers import is_torch_available
 from transformers.testing_utils import (
     TestCasePlus,
@@ -35,7 +35,7 @@ from transformers.trainer_utils import set_seed
 
 
 if is_torch_available():
-    from tests.trainer.test_trainer import (  # noqa
+    from small_tests.trainer.test_trainer import (  # noqa
         RegressionModelConfig,
         RegressionPreTrainedModel,
         get_regression_trainer,
@@ -140,9 +140,9 @@ TAPAS_TINY = "hf-internal-testing/tiny-random-tapas"
 
 
 def get_launcher(distributed=False):
-    # 1. explicitly set --num_nodes=1 just in case these tests end up run on a multi-node setup
+    # 1. explicitly set --num_nodes=1 just in case these small_tests end up run on a multi-node setup
     # - it won't be able to handle that
-    # 2. for now testing with just 2 gpus max (since some quality tests may give different
+    # 2. for now testing with just 2 gpus max (since some quality small_tests may give different
     # results with mode gpus because we use very little data)
     num_gpus = min(2, backend_device_count(torch_device)) if distributed else 1
     master_port = os.environ.get("DS_TEST_PORT", DEFAULT_MASTER_PORT)
@@ -305,7 +305,7 @@ ZERO3 = "zero3"
 stages = [ZERO2, ZERO3]
 
 # future preparation:
-# for now test just fp16, as these tests are quite slow
+# for now test just fp16, as these small_tests are quite slow
 # FP16 = "fp16"
 # BF16 = "bf16"
 #

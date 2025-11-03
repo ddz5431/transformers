@@ -731,7 +731,7 @@ demselben `tests/models/brand_new_bert/test_modeling_brand_new_bert.py`. Führen
 Tests bestehen:
 
 ```bash
-pytest tests/models/brand_new_bert/test_modeling_brand_new_bert.py
+pytest small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py
 ```
 
 Nachdem Sie alle allgemeinen Tests festgelegt haben, müssen Sie nun sicherstellen, dass all die schöne Arbeit, die Sie geleistet haben, gut getestet ist, damit
@@ -745,7 +745,7 @@ Cookiecutter hinzugefügt, die `BrandNewBertModelIntegrationTests` heißt und nu
 Tests erfolgreich sind, führen Sie
 
 ```bash
-RUN_SLOW=1 pytest -sv tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
+RUN_SLOW=1 pytest -sv small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
 ```
 
 <Tip>

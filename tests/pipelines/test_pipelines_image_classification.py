@@ -89,14 +89,14 @@ class ImageClassificationPipelineTests(unittest.TestCase):
             top_k=2,
         )
         examples = [
-            Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+            Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
             "http://images.cocodataset.org/val2017/000000039769.jpg",
         ]
         return image_classifier, examples
 
     def run_pipeline_test(self, image_classifier, examples):
         self._load_dataset()
-        outputs = image_classifier("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        outputs = image_classifier("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
 
         self.assertEqual(
             outputs,
@@ -109,7 +109,7 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         # Accepts URL + PIL.Image + lists
         outputs = image_classifier(
             [
-                Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+                Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
                 "http://images.cocodataset.org/val2017/000000039769.jpg",
                 # RGBA
                 self._dataset[0]["image"],

@@ -122,7 +122,7 @@ make fix-copies
 Las verificaciones adicionales se refieren a los PRs que agregan nuevos modelos, principalmente que:
 
 - Todos los modelos agregados están en un Auto-mapping (realizado por `utils/check_repo.py`)
-<!-- TODO Sylvain, add a check that makes sure the common tests are implemented.-->
+<!-- TODO Sylvain, add a check that makes sure the common small_tests are implemented.-->
 - Todos los modelos se verifican correctamente (realizados por `utils/check_repo.py`)
 
 <!-- TODO Sylvain, add the following

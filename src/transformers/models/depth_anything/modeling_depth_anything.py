@@ -251,6 +251,7 @@ class DepthAnythingPreTrainedModel(PreTrainedModel):
     config_class = DepthAnythingConfig
     base_model_prefix = "depth_anything"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     supports_gradient_checkpointing = True
 
     def _init_weights(self, module):

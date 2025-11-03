@@ -498,6 +498,7 @@ class LayoutLMv2PreTrainedModel(PreTrainedModel):
 
     config_class = LayoutLMv2Config
     base_model_prefix = "layoutlmv2"
+    input_modalities = ["image", "text"]
 
     def _init_weights(self, module):
         """Initialize the weights"""

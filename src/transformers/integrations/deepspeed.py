@@ -284,7 +284,7 @@ def set_hf_deepspeed_config(hf_deepspeed_config_obj):
 
 
 def unset_hf_deepspeed_config():
-    # useful for unit tests to ensure the global state doesn't leak - call from `tearDown` method
+    # useful for unit small_tests to ensure the global state doesn't leak - call from `tearDown` method
     global _hf_deepspeed_config_weak_ref
     _hf_deepspeed_config_weak_ref = None
 

@@ -374,7 +374,7 @@ class Mxfp4ModelTest(unittest.TestCase):
 
     input_text = "Once upon a time"
 
-    # Expected outputs for generation tests
+    # Expected outputs for generation small_tests
     EXPECTED_OUTPUTS = set()
     EXPECTED_OUTPUTS.add("Once upon a time, in a small town, there lived a young")
 

@@ -153,7 +153,7 @@ python src/transformers/commands/transformers_cli.py env
    在编写代码时，请确保测试套件通过。用下面的方式运行受你的更改影响的测试：
 
    ```bash
-   pytest tests/<TEST_TO_RUN>.py
+   pytest small_tests/<TEST_TO_RUN>.py
    ```
 
    想了解更多关于测试的信息，请阅读[测试](https://huggingface.co/docs/transformers/testing)指南。
@@ -252,7 +252,7 @@ python src/transformers/commands/transformers_cli.py env
 我们喜欢使用 `pytest` 和 `pytest-xdist`，因为它运行更快。在仓库的根目录，指定一个*子文件夹的路径或测试文件*来运行测试：
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 ```
 
 同样地，在 `examples` 目录，指定一个*子文件夹的路径或测试文件* 来运行测试。例如，以下命令会测试 PyTorch `examples` 目录中的文本分类子文件夹：
@@ -275,7 +275,7 @@ python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classific
 </Tip>
 
 ```bash
-RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classification
 ```
 
@@ -289,7 +289,7 @@ RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/t
 这意味着完全支持 `unittest` 。以下是如何使用 `unittest` 运行测试的方法：
 
 ```bash
-python -m unittest discover -s tests -t . -v
+python -m unittest discover -s small_tests -t . -v
 python -m unittest discover -s examples -t examples -v
 ```
 

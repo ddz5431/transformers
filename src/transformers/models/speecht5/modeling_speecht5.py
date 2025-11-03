@@ -1213,6 +1213,7 @@ class SpeechT5PreTrainedModel(PreTrainedModel):
     config_class = SpeechT5Config
     base_model_prefix = "speecht5"
     main_input_name = "input_values"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
 
     def _init_weights(self, module):
@@ -2572,6 +2573,7 @@ def _generate_speech(
     SPEECHT5_START_DOCSTRING,
 )
 class SpeechT5ForTextToSpeech(SpeechT5PreTrainedModel):
+    input_modalities = "text"
     main_input_name = "input_ids"
 
     def __init__(self, config: SpeechT5Config):

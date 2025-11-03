@@ -160,7 +160,7 @@ def move_model_files_to_deprecated(model):
 
 
 def delete_model_tests(model):
-    tests_path = REPO_PATH / f"tests/models/{model}"
+    tests_path = REPO_PATH / f"small_tests/models/{model}"
 
     if os.path.exists(tests_path):
         repo.git.rm("-r", tests_path)
@@ -348,8 +348,8 @@ def deprecate_models(models):
         print("Moving model files to deprecated for model")
         move_model_files_to_deprecated(model)
 
-        # Delete the model tests: tests/models/model
-        print("Deleting model tests")
+        # Delete the model small_tests: small_tests/models/model
+        print("Deleting model small_tests")
         delete_model_tests(model)
 
     # # We do the following with all models passed at once to avoid having to re-write the file multiple times

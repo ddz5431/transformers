@@ -1058,6 +1058,7 @@ class UniSpeechSatPreTrainedModel(PreTrainedModel):
     config_class = UniSpeechSatConfig
     base_model_prefix = "unispeech_sat"
     main_input_name = "input_values"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_flash_attn_2 = True
     _supports_sdpa = True

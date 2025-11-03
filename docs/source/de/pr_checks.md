@@ -134,7 +134,7 @@ make fix-copies
 Zusätzliche Prüfungen betreffen PRs, die neue Modelle hinzufügen, vor allem, dass:
 
 - Alle hinzugefügten Modelle befinden sich in einer Auto-Zuordnung (durchgeführt von `utils/check_repo.py`)
-<!-- TODO Sylvain, add a check that makes sure the common tests are implemented.-->
+<!-- TODO Sylvain, add a check that makes sure the common small_tests are implemented.-->
 - Alle Modelle werden ordnungsgemäß getestet (ausgeführt von `utils/check_repo.py`)
 
 <!-- TODO Sylvain, add the following

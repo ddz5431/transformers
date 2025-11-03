@@ -28,8 +28,8 @@ from get_test_info import (  # noqa: E402
 )
 
 
-BERT_TEST_FILE = os.path.join("tests", "models", "bert", "test_modeling_bert.py")
-BLIP_TEST_FILE = os.path.join("tests", "models", "blip", "test_modeling_blip.py")
+BERT_TEST_FILE = os.path.join("small_tests", "models", "bert", "test_modeling_bert.py")
+BLIP_TEST_FILE = os.path.join("small_tests", "models", "blip", "test_modeling_blip.py")
 
 
 class GetTestInfoTester(unittest.TestCase):

@@ -588,6 +588,8 @@ DAC_INPUTS_DOCSTRING = r"""
     DAC_START_DOCSTRING,
 )
 class DacModel(DacPreTrainedModel):
+    input_modalities = "audio"
+
     def __init__(self, config: DacConfig):
         super().__init__(config)
         self.config = config

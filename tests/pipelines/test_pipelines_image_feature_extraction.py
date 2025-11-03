@@ -42,7 +42,7 @@ if is_vision_available():
 
 # We will verify our results on an image of cute cats
 def prepare_img():
-    image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
+    image = Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
     return image
 
 

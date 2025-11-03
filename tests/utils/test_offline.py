@@ -129,7 +129,7 @@ socket.socket = offline_socket
         self.assertIn("success", stdout)
 
         # next emulate no network
-        # Doesn't fail anymore since the model is in the cache due to other tests, so commenting this.
+        # Doesn't fail anymore since the model is in the cache due to other small_tests, so commenting this.
         # self._execute_with_env(load, mock, run, should_fail=True, TRANSFORMERS_OFFLINE="0")
 
         # should succeed as TRANSFORMERS_OFFLINE=1 tells it to use local files

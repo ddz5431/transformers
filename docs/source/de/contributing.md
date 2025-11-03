@@ -153,7 +153,7 @@ Sie benötigen **[Python 3.9](https://github.com/huggingface/transformers/blob/m
    Während Sie an Ihrem Code arbeiten, sollten Sie sicherstellen, dass die Test-Suite erfolgreich durchläuft. Führen Sie die von Ihren Änderungen betroffenen Tests wie folgt aus:
 
    ```bash
-   pytest tests/<TEST_TO_RUN>.py
+   pytest small_tests/<TEST_TO_RUN>.py
    ```
 
    Weitere Informationen über Tests finden Sie in der Anleitung zum Thema [Testen](https://huggingface.co/docs/transformers/testing).
@@ -253,7 +253,7 @@ Eine umfangreiche Test-Suite ist enthalten, um das Verhalten der Bibliothek und 
 Wir bevorzugen `pytest` und `pytest-xdist`, weil es schneller ist. Geben Sie einen *Pfad zu einem Unterordner oder einer Testdatei* vom Hauptverzeichnis des Repositorys aus an, um den Test auszuführen:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 ```
 
 Analog für den `examples` Ordner, geben Sie einen *Pfad zu einem Unterordner oder einer Testdatei* an, um den Test auszuführen. Z. B. führt der folgende Befehl den Test des Unterordners für Textklassifizierung im PyTorch `examples` Ordner durch:
@@ -276,7 +276,7 @@ Vergessen Sie nicht, einen *Pfad zu einem Unterordner oder einer Testdatei* anzu
 </Tip>
 
 ```bash
-RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classification
 ```
 
@@ -291,7 +291,7 @@ Weitere Umgebungsvariablen und zusätzliche Informationen finden Sie in der [tes
 Das bedeutet, `unittest` wird vollständig unterstützt. Folgend wird beschrieben, wie man Tests mit `unittest` ausführt:
 
 ```bash
-python -m unittest discover -s tests -t . -v
+python -m unittest discover -s small_tests -t . -v
 python -m unittest discover -s examples -t examples -v
 ```
 

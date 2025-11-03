@@ -22,7 +22,7 @@ from .test_feature_extraction_common import FeatureExtractionSavingTestMixin
 
 
 class SequenceFeatureExtractionTestMixin(FeatureExtractionSavingTestMixin):
-    # to overwrite at feature extractactor specific tests
+    # to overwrite at feature extractactor specific small_tests
     feat_extract_tester = None
     feature_extraction_class = None
 

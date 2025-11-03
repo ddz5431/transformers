@@ -21,8 +21,8 @@ from functools import partial
 
 from parameterized import parameterized
 
-import tests.trainer.test_trainer
-from tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
+import small_tests.trainer.test_trainer
+from small_tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
 from transformers import is_torch_available
 from transformers.testing_utils import (
     TestCasePlus,
@@ -70,7 +70,7 @@ def get_master_port(real_launcher=False):
     When using a single gpu launcher emulation (i.e. not deepspeed or python -m torch.distributed)
     the issue is that once the port is tied it can't be used anywhere else outside of this process,
     since torch.dist doesn't free the port until the process exits. Therefore for the sake of being
-    able to run both emulated launcher and normal launcher tests we need 2 distinct ports.
+    able to run both emulated launcher and normal launcher small_tests we need 2 distinct ports.
 
     This function will give the right port in the right context. For real launcher it'll give the
     base port, for emulated launcher it'll give the base port + 1. In both cases a string is
@@ -94,7 +94,7 @@ if is_torch_available():
     )
 
     # hack to restore original logging level pre #21700
-    get_regression_trainer = partial(tests.trainer.test_trainer.get_regression_trainer, log_level="info")
+    get_regression_trainer = partial(small_tests.trainer.test_trainer.get_regression_trainer, log_level="info")
 
 require_fsdp_version = require_fsdp
 if is_accelerate_available():
@@ -116,9 +116,9 @@ if is_accelerate_available(min_version=FSDP2_ACCELERATE_VERSION):
 
 
 def get_launcher(distributed=False, use_accelerate=False):
-    # 1. explicitly set --num_nodes=1 just in case these tests end up run on a multi-node setup
+    # 1. explicitly set --num_nodes=1 just in case these small_tests end up run on a multi-node setup
     # - it won't be able to handle that
-    # 2. for now testing with just 2 gpus max (since some quality tests may give different
+    # 2. for now testing with just 2 gpus max (since some quality small_tests may give different
     # results with mode gpus because we use very little data)
     num_gpus = min(2, backend_device_count(torch_device)) if distributed else 1
     master_port = get_master_port(real_launcher=True)

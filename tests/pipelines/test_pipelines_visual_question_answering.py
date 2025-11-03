@@ -71,11 +71,11 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
         )
         examples = [
             {
-                "image": Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+                "image": Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
                 "question": "How many cats are there?",
             },
             {
-                "image": "./tests/fixtures/tests_samples/COCO/000000039769.png",
+                "image": "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
                 "question": "How many cats are there?",
             },
         ]
@@ -94,7 +94,7 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_pt(self):
         vqa_pipeline = pipeline("visual-question-answering", model="hf-internal-testing/tiny-vilt-random-vqa")
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         question = "How many cats are there?"
 
         outputs = vqa_pipeline(image=image, question="How many cats are there?", top_k=2)
@@ -113,7 +113,7 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
         vqa_pipeline = pipeline(
             "visual-question-answering", model="hf-internal-testing/tiny-random-Blip2ForConditionalGeneration"
         )
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         question = "How many cats are there?"
 
         outputs = vqa_pipeline(image=image, question=question)
@@ -142,7 +142,7 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
     @require_torch
     def test_large_model_pt(self):
         vqa_pipeline = pipeline("visual-question-answering", model="dandelin/vilt-b32-finetuned-vqa")
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         question = "How many cats are there?"
 
         outputs = vqa_pipeline(image=image, question=question, top_k=2)
@@ -176,7 +176,7 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
         self.assertEqual(vqa_pipeline.model.device, torch.device(f"{torch_device}:0"))
         self.assertEqual(vqa_pipeline.model.language_model.dtype, torch.float16)
 
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         question = "Question: how many cats are there? Answer:"
 
         outputs = vqa_pipeline(image=image, question=question)
@@ -192,8 +192,8 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
     def test_small_model_pt_image_list(self):
         vqa_pipeline = pipeline("visual-question-answering", model="hf-internal-testing/tiny-vilt-random-vqa")
         images = [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000004016.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000004016.png",
         ]
 
         outputs = vqa_pipeline(image=images, question="How many cats are there?", top_k=1)
@@ -204,7 +204,7 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_pt_question_list(self):
         vqa_pipeline = pipeline("visual-question-answering", model="hf-internal-testing/tiny-vilt-random-vqa")
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         questions = ["How many cats are there?", "Are there any dogs?"]
 
         outputs = vqa_pipeline(image=image, question=questions, top_k=1)
@@ -216,8 +216,8 @@ class VisualQuestionAnsweringPipelineTests(unittest.TestCase):
     def test_small_model_pt_both_list(self):
         vqa_pipeline = pipeline("visual-question-answering", model="hf-internal-testing/tiny-vilt-random-vqa")
         images = [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000004016.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000004016.png",
         ]
         questions = ["How many cats are there?", "Are there any dogs?"]
 

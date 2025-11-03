@@ -422,6 +422,7 @@ class UdopPreTrainedModel(PreTrainedModel):
 
     config_class = UdopConfig
     base_model_prefix = "transformer"
+    input_modalities = ["image", "text"]
     supports_gradient_checkpointing = True
     _supports_cache_class = True
     _supports_static_cache = False
@@ -1292,7 +1293,7 @@ class UdopStack(UdopPreTrainedModel):
     def _tie_weights(self):
         for bias in self.relative_bias.biases:
             if isinstance(bias, RelativePositionBias1D):
-                self._tie_or_clone_weights(
+                self._tie_embedding_weights(
                     bias.relative_attention_bias, self.block[0].layer[0].SelfAttention.relative_attention_bias
                 )
 

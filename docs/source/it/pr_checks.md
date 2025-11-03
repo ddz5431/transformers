@@ -125,7 +125,7 @@ make fix-copies
 Ulteriori controlli riguardano le PR che aggiungono nuovi modelli, principalmente che:
 
 - Tutti i modelli aggiunti sono in un Auto-mapping (eseguita da `utils/check_repo.py`)
-<!-- TODO Sylvain, add a check that makes sure the common tests are implemented.-->
+<!-- TODO Sylvain, add a check that makes sure the common small_tests are implemented.-->
 - Tutti i modelli sono testati correttamente (eseguito da `utils/check_repo.py`)
 
 <!-- TODO Sylvain, add the following

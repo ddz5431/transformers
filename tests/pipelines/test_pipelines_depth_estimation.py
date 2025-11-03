@@ -88,18 +88,18 @@ class DepthEstimationPipelineTests(unittest.TestCase):
             torch_dtype=torch_dtype,
         )
         return depth_estimator, [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
         ]
 
     def run_pipeline_test(self, depth_estimator, examples):
         self._load_dataset()
-        outputs = depth_estimator("./tests/fixtures/tests_samples/COCO/000000039769.png")
+        outputs = depth_estimator("./small_tests/fixtures/tests_samples/COCO/000000039769.png")
         self.assertEqual({"predicted_depth": ANY(torch.Tensor), "depth": ANY(Image.Image)}, outputs)
 
         outputs = depth_estimator(
             [
-                Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+                Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
                 "http://images.cocodataset.org/val2017/000000039769.jpg",
                 # RGBA
                 self._dataset[0]["image"],
@@ -143,7 +143,7 @@ class DepthEstimationPipelineTests(unittest.TestCase):
 
     @require_torch
     def test_small_model_pt(self):
-        # This is highly irregular to have no small tests.
+        # This is highly irregular to have no small small_tests.
         self.skipTest(reason="There is not hf-internal-testing tiny model for either GLPN nor DPT")
 
     @require_torch
@@ -154,8 +154,8 @@ class DepthEstimationPipelineTests(unittest.TestCase):
         )
         outputs = depth_estimator(
             [
-                "./tests/fixtures/tests_samples/COCO/000000039769.png",
-                "./tests/fixtures/tests_samples/COCO/000000039769.png",
+                "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+                "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
             ]
         )
         self.assertEqual(

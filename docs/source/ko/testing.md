@@ -46,7 +46,7 @@ rendered properly in your Markdown viewer.
 
 
 ```bash
-RUN_SLOW=1 pytest tests/
+RUN_SLOW=1 pytest small_tests/
 RUN_SLOW=1 pytest examples/
 ```
 
@@ -81,7 +81,7 @@ make test
 후자는 다음과 같이 정의됩니다:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/
 ```
 
 위의 명령어는 pytest에게 아래의 내용을 전달합니다:
@@ -104,7 +104,7 @@ pytest --collect-only -q
 지정된 테스트 파일의 모든 테스트:
 
 ```bash
-pytest tests/test_optimization.py --collect-only -q
+pytest small_tests/test_optimization.py --collect-only -q
 ```
 
 ### 특정 테스트 모듈 실행[[run-a-specific-test-module]]
@@ -112,7 +112,7 @@ pytest tests/test_optimization.py --collect-only -q
 개별 테스트 모듈 실행하기:
 
 ```bash
-pytest tests/utils/test_logging.py
+pytest small_tests/utils/test_logging.py
 ```
 
 ### 특정 테스트 실행[[run-specific-tests]]
@@ -121,7 +121,7 @@ pytest tests/utils/test_logging.py
 예를 들어 다음과 같을 수 있습니다:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest::test_adam_w
+pytest small_tests/test_optimization.py::OptimizationTest::test_adam_w
 ```
 
 위의 명령어의 의미는 다음과 같습니다:
@@ -133,7 +133,7 @@ pytest tests/test_optimization.py::OptimizationTest::test_adam_w
 파일에 여러 클래스가 포함된 경우, 특정 클래스의 테스트만 실행할 수도 있습니다. 예를 들어 다음과 같습니다:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest
+pytest small_tests/test_optimization.py::OptimizationTest
 ```
 
 이 명령어는 해당 클래스 내부의 모든 테스트를 실행합니다.
@@ -141,7 +141,7 @@ pytest tests/test_optimization.py::OptimizationTest
 앞에서 언급한 것처럼 `OptimizationTest` 클래스에 포함된 테스트를 확인할 수 있습니다.
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest --collect-only -q
+pytest small_tests/test_optimization.py::OptimizationTest --collect-only -q
 ```
 
 키워드 표현식을 사용하여 테스트를 실행할 수도 있습니다.
@@ -149,7 +149,7 @@ pytest tests/test_optimization.py::OptimizationTest --collect-only -q
 `adam`이라는 이름을 포함하는 테스트만 실행하려면 다음과 같습니다:
 
 ```bash
-pytest -k adam tests/test_optimization.py
+pytest -k adam small_tests/test_optimization.py
 ```
 
 논리 연산자 `and`와 `or`를 사용하여 모든 키워드가 일치해야 하는지 또는 어느 하나가 일치해야 하는지를 나타낼 수 있습니다.
@@ -158,19 +158,19 @@ pytest -k adam tests/test_optimization.py
 `adam`이라는 이름을 포함하지 않는 모든 테스트를 실행하려면 다음과 같습니다:
 
 ```bash
-pytest -k "not adam" tests/test_optimization.py
+pytest -k "not adam" small_tests/test_optimization.py
 ```
 
 두 가지 패턴을 하나로 결합할 수도 있습니다:
 
 ```bash
-pytest -k "ada and not adam" tests/test_optimization.py
+pytest -k "ada and not adam" small_tests/test_optimization.py
 ```
 
 예를 들어 `test_adafactor`와 `test_adam_w`를 모두 실행하려면 다음을 사용할 수 있습니다:
 
 ```bash
-pytest -k "test_adam_w or test_adam_w" tests/test_optimization.py
+pytest -k "test_adam_w or test_adam_w" small_tests/test_optimization.py
 ```
 
 여기서 `or`를 사용하는 것에 유의하세요. 두 키워드 중 하나가 일치하도록 하기 위한 목적으로 사용하기 때문입니다.
@@ -178,7 +178,7 @@ pytest -k "test_adam_w or test_adam_w" tests/test_optimization.py
 두 패턴이 모두 포함되어야 하는 테스트만 실행하려면, `and`를 사용해야 합니다:
 
 ```bash
-pytest -k "test and ada" tests/test_optimization.py
+pytest -k "test and ada" small_tests/test_optimization.py
 ```
 
 ### `accelerate` 테스트 실행[[run-`accelerate`-tests]]
@@ -186,7 +186,7 @@ pytest -k "test and ada" tests/test_optimization.py
 모델에서 `accelerate` 테스트를 실행해야 할 때가 있습니다. 이를 위해서는 명령어에 `-m accelerate_tests`를 추가하면 됩니다.
 예를 들어, `OPT`에서 이러한 테스트를 실행하려면 다음과 같습니다:
 ```bash
-RUN_SLOW=1 pytest -m accelerate_tests tests/models/opt/test_modeling_opt.py
+RUN_SLOW=1 pytest -m accelerate_tests small_tests/models/opt/test_modeling_opt.py
 ```
 
 ### 문서 테스트 실행[[run-documentation-tests]]
@@ -279,7 +279,7 @@ looponfailroots = transformers tests
 예를 들어, `test_modeling_*.py` 테스트를 제외한 모든 테스트를 실행하려면 다음을 사용할 수 있습니다:
 
 ```bash
-pytest *ls -1 tests/*py | grep -v test_modeling*
+pytest *ls -1 small_tests/*py | grep -v test_modeling*
 ```
 
 ### 상태 초기화[[clearing state]]
@@ -287,7 +287,7 @@ pytest *ls -1 tests/*py | grep -v test_modeling*
 CI 빌드 및 (속도에 대한) 격리가 중요한 경우, 캐시를 지워야 합니다:
 
 ```bash
-pytest --cache-clear tests
+pytest --cache-clear small_tests
 ```
 
 ### 테스트를 병렬로 실행[[running-tests-in-parallel]]
@@ -320,7 +320,7 @@ pip install pytest-flakefinder
 모든 테스트를 여러 번 실행합니다(기본값은 50번):
 
 ```bash
-pytest --flake-finder --flake-runs=5 tests/test_failing_test.py
+pytest --flake-finder --flake-runs=5 small_tests/test_failing_test.py
 ```
 
 <Tip>
@@ -348,7 +348,7 @@ pip install pytest-random-order
 `pytest-random-order`가 설치되면 해당 세션에서 사용된 랜덤 시드가 출력되며 예를 들어 다음과 같습니다:
 
 ```bash
-pytest tests
+pytest small_tests
 [...]
 Using --random-order-bucket=module
 Using --random-order-seed=573663
@@ -368,7 +368,7 @@ Using --random-order-seed=573663
 예를 들어 다음과 같습니다:
 
 ```bash
-pytest --random-order-bucket=none tests/test_a.py tests/test_c.py tests/test_b.py
+pytest --random-order-bucket=none small_tests/test_a.py small_tests/test_c.py small_tests/test_b.py
 ```
 
 모든 테스트에 대해 섞기를 비활성화하려면 다음과 같습니다:
@@ -411,7 +411,7 @@ pytest -p no:sugar
 `pytest`를 통해 단일 또는 그룹의 테스트를 실행하는 경우(`pip install pytest-pspec` 이후):
 
 ```bash
-pytest --pspec tests/test_optimization.py
+pytest --pspec small_tests/test_optimization.py
 ```
 
 #### 실패한 테스트 즉시 표시[[instantly-shows-failed-tests]]
@@ -432,14 +432,14 @@ pytest --instafail
 GPU가 활성화된 환경에서, CPU 전용 모드로 테스트하려면 `CUDA_VISIBLE_DEVICES=""`를 추가합니다:
 
 ```bash
-CUDA_VISIBLE_DEVICES="" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="" pytest small_tests/utils/test_logging.py
 ```
 
 또는 다중 GPU가 있는 경우 `pytest`에서 사용할 GPU를 지정할 수도 있습니다.
 예를 들어, GPU `0` 및 `1`이 있는 경우 다음을 실행할 수 있습니다:
 
 ```bash
-CUDA_VISIBLE_DEVICES="1" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="1" pytest small_tests/utils/test_logging.py
 ```
 
 이렇게 하면 다른 GPU에서 다른 작업을 실행하려는 경우 유용합니다.
@@ -527,7 +527,7 @@ n_gpu = get_gpu_count()  #torch와 tf와 함께 작동
 이러한 테스트를 실행하려면 적어도 2개의 GPU가 필요합니다.
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
+CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv small_tests/test_trainer_distributed.py
 ```
 
 ### 출력 캡처[[output-capture]]
@@ -538,13 +538,13 @@ CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
 출력 캡처를 비활성화하고 `stdout` 및 `stderr`를 정상적으로 받으려면 `-s` 또는 `--capture=no`를 사용하세요:
 
 ```bash
-pytest -s tests/utils/test_logging.py
+pytest -s small_tests/utils/test_logging.py
 ```
 
 테스트 결과를 JUnit 형식의 출력으로 보내려면 다음을 사용하세요:
 
 ```bash
-py.test tests --junitxml=result.xml
+py.test small_tests --junitxml=result.xml
 ```
 
 ### 색상 조절[[color-control]]
@@ -552,7 +552,7 @@ py.test tests --junitxml=result.xml
 색상이 없게 하려면 다음과 같이 설정하세요(예를 들어 흰색 배경에 노란색 글씨는 가독성이 좋지 않습니다):
 
 ```bash
-pytest --color=no tests/utils/test_logging.py
+pytest --color=no small_tests/utils/test_logging.py
 ```
 
 ### online pastebin service에 테스트 보고서 전송[[sending test report to online pastebin service]]
@@ -560,7 +560,7 @@ pytest --color=no tests/utils/test_logging.py
 각 테스트 실패에 대한 URL을 만듭니다:
 
 ```bash
-pytest --pastebin=failed tests/utils/test_logging.py
+pytest --pastebin=failed small_tests/utils/test_logging.py
 ```
 
 이렇게 하면 각 실패에 대한 URL을 제공하는 remote Paste service에 테스트 실행 정보를 제출합니다.
@@ -569,7 +569,7 @@ pytest --pastebin=failed tests/utils/test_logging.py
 전체 테스트 세션 로그에 대한 URL을 생성합니다:
 
 ```bash
-pytest --pastebin=all tests/utils/test_logging.py
+pytest --pastebin=all small_tests/utils/test_logging.py
 ```
 
 ## 테스트 작성[[writing-tests]]
@@ -611,13 +611,13 @@ class TestMathUnitTest(unittest.TestCase):
 그리고 `negative` 및 `integer` 매개변수 집합만 실행하려면 다음과 같이 실행할 수 있습니다:
 
 ```bash
-pytest -k "negative and integer" tests/test_mytest.py
+pytest -k "negative and integer" small_tests/test_mytest.py
 ```
 
 또는 `negative` 하위 테스트를 제외한 모든 서브 테스트를 다음과 같이 실행할 수 있습니다:
 
 ```bash
-pytest -k "not negative" tests/test_mytest.py
+pytest -k "not negative" small_tests/test_mytest.py
 ```
 
 앞에서 언급한 `-k` 필터를 사용하는 것 외에도,
@@ -878,7 +878,7 @@ def test_feature_x():
 import pytest
 
 if not pytest.config.getoption("--custom-flag"):
-    pytest.skip("--custom-flag is missing, skipping tests", allow_module_level=True)
+    pytest.skip("--custom-flag is missing, skipping small_tests", allow_module_level=True)
 ```
 
 또는 `xfail` 방식으로:
@@ -933,7 +933,7 @@ def test_integration_foo():
 `@slow`로 표시된 테스트를 실행하려면 `RUN_SLOW=1` 환경 변수를 설정하세요. 예를 들어 다음과 같습니다:
 
 ```bash
-RUN_SLOW=1 pytest tests
+RUN_SLOW=1 pytest small_tests
 ```
 
 `@parameterized`와 같은 몇 가지 데코레이터는 테스트 이름을 다시 작성합니다.
@@ -973,7 +973,7 @@ def test_integration_foo():
 이러한 작은 모델을 사용하는 방법을 확인하려면 다음과 같이 *tiny* 모델을 찾아보세요.
 
 ```bash
-grep tiny tests examples
+grep tiny small_tests examples
 ```
 
 다음은 작은 모델[stas/tiny-wmt19-en-de](https://huggingface.co/stas/tiny-wmt19-en-de)을 만든
@@ -1199,7 +1199,7 @@ tf.random.set_seed(seed)
 경고가 있는 곳에서 디버거를 시작하려면 다음을 수행하세요.
 
 ```bash
-pytest tests/utils/test_logging.py -W error::UserWarning --pdb
+pytest small_tests/utils/test_logging.py -W error::UserWarning --pdb
 ```
 
 ## Github Actions 워크플로우 작업 처리[[working-with-github-actions-workflows]]

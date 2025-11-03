@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # this script reports modified .py files under the desired list of top-level sub-dirs passed as a list of arguments, e.g.:
-#   python ./utils/get_modified_files.py utils src tests examples
+#   python ./utils/get_modified_files.py utils src small_tests examples
 #
 # it uses git to find the forking point and which files were modified - i.e. files not under git won't be considered
 # since the output of this script is fed into Makefile commands it doesn't print a newline after the results

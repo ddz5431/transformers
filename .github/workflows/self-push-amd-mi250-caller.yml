@@ -10,7 +10,7 @@ on:
       - run_amd_push_ci_caller*
     paths:
       - "src/**"
-      - "tests/**"
+      - "../../../small_tests/**"
       - ".github/**"
       - "templates/**"
       - "utils/**"

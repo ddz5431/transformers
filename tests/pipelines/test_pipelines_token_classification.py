@@ -313,7 +313,7 @@ class TokenClassificationPipelineTests(unittest.TestCase):
         # Note: We cannot run the test on "conflicts" on the chunking.
         # The problem is that the model is random, and thus the results do heavily
         # depend on the chunking, so we cannot expect "abcd" and "bcd" to find
-        # the same entities. We defer to slow tests for this.
+        # the same entities. We defer to slow small_tests for this.
         pipe = pipeline(model="hf-internal-testing/tiny-bert-for-token-classification")
         sentence = "The company, based in New York City was founded in 2016 by French entrepreneurs"
 

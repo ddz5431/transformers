@@ -137,6 +137,7 @@ class HubertPreTrainedModel(PreTrainedModel):
     config_class = HubertConfig
     base_model_prefix = "hubert"
     main_input_name = "input_values"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_flash_attn_2 = True
     _supports_sdpa = True

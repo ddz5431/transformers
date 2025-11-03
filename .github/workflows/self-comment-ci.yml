@@ -178,7 +178,7 @@ jobs:
             -f "target_url=$GITHUB_RUN_URL" -f "state=pending" -f "description=Slow CI job" -f "context=pytest/custom-tests"
 
   run_models_gpu:
-    name: Run all tests for the model
+    name: Run all small_tests for the model
     if: ${{ needs.get-tests.outputs.models != '[]' }}
     needs: [get-pr-number, get-sha, get-tests, create_run]
     strategy:
@@ -258,7 +258,7 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Run all tests on GPU
+      - name: Run all small_tests on GPU
         working-directory: /transformers
         run: |
           export CUDA_VISIBLE_DEVICES="$(python3 utils/set_cuda_devices_for_ci.py --test_folder ${{ matrix.folders }})"
@@ -285,7 +285,7 @@ jobs:
           path: /transformers/reports/${{ env.machine_type }}_run_models_gpu_${{ matrix.folders }}_test_reports
 
   run_quantization_torch_gpu:
-    name: Run all tests for a quantization
+    name: Run all small_tests for a quantization
     if: ${{ needs.get-tests.outputs.quantizations != '[]' }}
     needs: [get-pr-number, get-sha, get-tests, create_run]
     strategy:
@@ -357,7 +357,7 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Run quantization tests on GPU
+      - name: Run quantization small_tests on GPU
         working-directory: /transformers
         run: |
           python3 -m pytest -v --make-reports=${{ env.machine_type }}_run_quantization_torch_gpu_${{ matrix.folders }}_test_reports tests/${{ matrix.folders }}

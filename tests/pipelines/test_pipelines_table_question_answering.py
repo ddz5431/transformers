@@ -35,7 +35,7 @@ from transformers.testing_utils import (
 @is_pipeline_test
 class TQAPipelineTests(unittest.TestCase):
     # Putting it there for consistency, but TQA do not have fast tokenizer
-    # which are needed to generate automatic tests
+    # which are needed to generate automatic small_tests
     model_mapping = MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING
 
     @require_tensorflow_probability

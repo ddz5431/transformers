@@ -33,7 +33,7 @@ import unittest
 
 from get_test_info import get_test_classes
 
-from tests.test_pipeline_mixin import pipeline_test_mapping
+from small_tests.test_pipeline_mixin import pipeline_test_mapping
 
 
 PIPELINE_TEST_MAPPING = {}
@@ -43,7 +43,7 @@ for task, _ in pipeline_test_mapping.items():
 
 # DO **NOT** add item to this set (unless the reason is approved)
 TEST_FILE_TO_IGNORE = {
-    "tests/models/esm/test_modeling_esmfold.py",  # The pipeline test mapping is added to `test_modeling_esm.py`
+    "small_tests/models/esm/test_modeling_esmfold.py",  # The pipeline test mapping is added to `test_modeling_esm.py`
 }
 
 
@@ -300,7 +300,7 @@ def add_pipeline_model_mapping_to_test_file(test_file, overwrite=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test_file", type=str, help="A path to the test file, starting with the repository's `tests` directory."
+        "--test_file", type=str, help="A path to the test file, starting with the repository's `small_tests` directory."
     )
     parser.add_argument(
         "--all",
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     if args.test_file:
         test_files = [args.test_file]
     else:
-        pattern = os.path.join("tests", "models", "**", "test_modeling_*.py")
+        pattern = os.path.join("small_tests", "models", "**", "test_modeling_*.py")
         for test_file in glob.glob(pattern):
             # `Flax` is not concerned at this moment
             if not test_file.startswith("test_modeling_flax_"):

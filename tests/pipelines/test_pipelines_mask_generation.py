@@ -94,8 +94,8 @@ class MaskGenerationPipelineTests(unittest.TestCase):
             torch_dtype=torch_dtype,
         )
         return image_segmenter, [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
         ]
 
     @unittest.skip(reason="TODO @Arthur: Implement me")

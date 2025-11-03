@@ -1952,7 +1952,7 @@ def require_ffmpeg(test_case):
     """
     Decorator marking a test that requires FFmpeg.
 
-    These tests are skipped when FFmpeg isn't installed.
+    These small_tests are skipped when FFmpeg isn't installed.
 
     """
     import subprocess

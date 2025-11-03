@@ -177,7 +177,7 @@ def async_retry(fn, max_attempts=5, delay=2):
 
 class ServeCompletionsMixin:
     """
-    Mixin class for the Completions API tests, to seamlessly replicate tests across the two versions of the API
+    Mixin class for the Completions API small_tests, to seamlessly replicate small_tests across the two versions of the API
     (`generate` and `continuous_batching`).
     """
 
@@ -278,7 +278,7 @@ class ServeCompletionsGenerateMockTests(unittest.TestCase):
         messages = expected_outputs = [
             {"role": "user", "content": "How are you doing?"},
             {"role": "assistant", "content": "I'm doing great, thank you for asking! How can I assist you today?"},
-            {"role": "user", "content": "Can you help me write tests?"},
+            {"role": "user", "content": "Can you help me write small_tests?"},
         ]
         outputs = ServeCommand.get_processor_inputs_from_inbound_messages(messages, modality)
         self.assertListEqual(expected_outputs, outputs)
@@ -291,7 +291,7 @@ class ServeCompletionsGenerateMockTests(unittest.TestCase):
                     {"type": "text", "text": "I'm doing great, thank you for asking! How can I assist you today?"}
                 ],
             },
-            {"role": "user", "content": [{"type": "text", "text": "Can you help me write tests?"}]},
+            {"role": "user", "content": [{"type": "text", "text": "Can you help me write small_tests?"}]},
         ]
         outputs = ServeCommand.get_processor_inputs_from_inbound_messages(messages_with_type, modality)
         self.assertListEqual(expected_outputs, outputs)
@@ -319,7 +319,7 @@ class ServeCompletionsGenerateMockTests(unittest.TestCase):
         messages = [
             {"role": "user", "content": "How are you doing?"},
             {"role": "assistant", "content": "I'm doing great, thank you for asking! How can I assist you today?"},
-            {"role": "user", "content": "Can you help me write tests?"},
+            {"role": "user", "content": "Can you help me write small_tests?"},
         ]
 
         expected_outputs = [
@@ -330,7 +330,7 @@ class ServeCompletionsGenerateMockTests(unittest.TestCase):
                     {"type": "text", "text": "I'm doing great, thank you for asking! How can I assist you today?"}
                 ],
             },
-            {"role": "user", "content": [{"type": "text", "text": "Can you help me write tests?"}]},
+            {"role": "user", "content": [{"type": "text", "text": "Can you help me write small_tests?"}]},
         ]
 
         outputs = ServeCommand.get_processor_inputs_from_inbound_messages(messages, modality)
@@ -408,7 +408,7 @@ class ServeCompletionsGenerateIntegrationTest(ServeCompletionsMixin, unittest.Te
 
     @classmethod
     def setUpClass(cls):
-        """Starts a server for tests to connect to."""
+        """Starts a server for small_tests to connect to."""
         cls.port = 8001
         args = ServeArguments(port=cls.port)
         serve_command = ServeCommand(args)
@@ -546,7 +546,7 @@ class ServeCompletionsContinuousBatchingIntegrationTest(ServeCompletionsMixin, u
 
     @classmethod
     def setUpClass(cls):
-        """Starts a server for tests to connect to."""
+        """Starts a server for small_tests to connect to."""
         cls.port = 8002
         args = ServeArguments(
             port=cls.port, continuous_batching=True, attn_implementation="sdpa_paged", default_seed=42
@@ -643,7 +643,7 @@ class ServeCompletionsContinuousBatchingIntegrationTest(ServeCompletionsMixin, u
 @require_openai
 class ServeResponsesMixin:
     """
-    Mixin class for the Completions API tests, to seamlessly replicate tests across the two versions of the API
+    Mixin class for the Completions API small_tests, to seamlessly replicate small_tests across the two versions of the API
     (`generate` and `continuous_batching`).
     """
 
@@ -699,7 +699,7 @@ class ServeResponsesIntegrationTest(ServeResponsesMixin, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Starts a server for tests to connect to."""
+        """Starts a server for small_tests to connect to."""
         cls.port = 8003
         args = ServeArguments(port=cls.port, default_seed=42)
         serve_command = ServeCommand(args)

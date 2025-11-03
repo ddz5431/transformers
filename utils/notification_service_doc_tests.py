@@ -67,7 +67,7 @@ class Message:
         self.n_failures = sum(job_result["n_failures"] for job_result in doc_test_results.values())
         self.n_tests = self.n_success + self.n_failures
 
-        # Failures and success of the modeling tests
+        # Failures and success of the modeling small_tests
         self.doc_test_results = doc_test_results
 
     @property
@@ -99,7 +99,7 @@ class Message:
             "type": "section",
             "text": {
                 "type": "plain_text",
-                "text": f"🌞 There were no failures: all {self.n_tests} tests passed. The suite ran in {self.time}.",
+                "text": f"🌞 There were no failures: all {self.n_tests} small_tests passed. The suite ran in {self.time}.",
                 "emoji": True,
             },
             "accessory": {
@@ -116,7 +116,7 @@ class Message:
             "text": {
                 "type": "plain_text",
                 "text": (
-                    f"There were {self.n_failures} failures, out of {self.n_tests} tests.\nThe suite ran in"
+                    f"There were {self.n_failures} failures, out of {self.n_tests} small_tests.\nThe suite ran in"
                     f" {self.time}."
                 ),
                 "emoji": True,
@@ -188,7 +188,7 @@ class Message:
                 "type": "section",
                 "text": {
                     "type": "plain_text",
-                    "text": "There was an issue running the tests.",
+                    "text": "There was an issue running the small_tests.",
                 },
                 "accessory": {
                     "type": "button",
@@ -203,7 +203,7 @@ class Message:
 
         client.chat_postMessage(
             channel=SLACK_REPORT_CHANNEL_ID,
-            text="There was an issue running the tests.",
+            text="There was an issue running the small_tests.",
             blocks=payload,
         )
 
@@ -211,7 +211,7 @@ class Message:
         print("Sending the following payload")
         print(json.dumps({"blocks": json.loads(self.payload)}))
 
-        text = f"{self.n_failures} failures out of {self.n_tests} tests," if self.n_failures else "All tests passed."
+        text = f"{self.n_failures} failures out of {self.n_tests} small_tests," if self.n_failures else "All small_tests passed."
 
         self.thread_ts = client.chat_postMessage(
             channel=SLACK_REPORT_CHANNEL_ID,
@@ -342,7 +342,7 @@ if __name__ == "__main__":
         job_name = artifact_path["path"].replace("doc_tests_gpu_test_reports_", "").replace("_", "/")
 
         # This dict (for each job) will contain all the information relative to each doc test job, in particular:
-        #   - failed: list of failed tests
+        #   - failed: list of failed small_tests
         #   - failures: dict in the format 'test': 'error_message'
         job_result = {}
         doc_test_results[job_name] = job_result
@@ -380,6 +380,6 @@ if __name__ == "__main__":
     with open("doc_test_results/doc_test_results.json", "w", encoding="UTF-8") as fp:
         json.dump(doc_test_results, fp, ensure_ascii=False, indent=4)
 
-    message = Message("🤗 Results of the doc tests.", doc_test_results)
+    message = Message("🤗 Results of the doc small_tests.", doc_test_results)
     message.post()
     message.post_reply()

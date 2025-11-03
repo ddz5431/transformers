@@ -1,4 +1,4 @@
-name: Process failed tests
+name: Process failed small_tests
 
 on:
   workflow_call:
@@ -123,7 +123,7 @@ jobs:
         if: ${{ env.process == 'true' }}
         run: pip freeze
 
-      - name: Check failed tests
+      - name: Check failed small_tests
         working-directory: /transformers
         if: ${{ env.process == 'true' }}
         run: python3 utils/check_bad_commit.py --start_commit ${{ inputs.start_sha }} --end_commit ${{ env.END_SHA }} --file ci_results_${{ inputs.job }}/new_failures.json --output_file new_failures_with_bad_commit.json

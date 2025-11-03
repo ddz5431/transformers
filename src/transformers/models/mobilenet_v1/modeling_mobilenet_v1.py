@@ -249,6 +249,7 @@ class MobileNetV1PreTrainedModel(PreTrainedModel):
     load_tf_weights = load_tf_weights_in_mobilenet_v1
     base_model_prefix = "mobilenet_v1"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     supports_gradient_checkpointing = False
     _no_split_modules = []
 

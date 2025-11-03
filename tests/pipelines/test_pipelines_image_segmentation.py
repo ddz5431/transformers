@@ -117,14 +117,14 @@ class ImageSegmentationPipelineTests(unittest.TestCase):
             torch_dtype=torch_dtype,
         )
         return image_segmenter, [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
         ]
 
     def run_pipeline_test(self, image_segmenter, examples):
         self._load_dataset()
         outputs = image_segmenter(
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
             threshold=0.0,
             mask_threshold=0,
             overlap_mask_area_threshold=0,
@@ -171,11 +171,11 @@ class ImageSegmentationPipelineTests(unittest.TestCase):
 
         # 5 times the same image so the output shape is predictable
         batch = [
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
         ]
         outputs = image_segmenter(
             batch,

@@ -891,6 +891,7 @@ class AutoformerDecoderLayer(nn.Module):
 class AutoformerPreTrainedModel(PreTrainedModel):
     config_class = AutoformerConfig
     base_model_prefix = "model"
+    input_modalities = "time"
     main_input_name = "past_values"
     supports_gradient_checkpointing = True
 

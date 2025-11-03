@@ -30,7 +30,7 @@ class StackCompressedModelTest(unittest.TestCase):
             "nm-testing/llama2.c-stories42M-gsm8k-stacked-uncompressed",
         ),
     ]
-    # Flatten the list for tests that require a single list of stubs.
+    # Flatten the list for small_tests that require a single list of stubs.
     model_stubs = [stub for pair in compressed_uncompressed_model_stubs for stub in pair]
 
     # For the outputs matching test, use the sparse-only pair.

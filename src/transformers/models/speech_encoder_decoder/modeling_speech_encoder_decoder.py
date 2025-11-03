@@ -181,6 +181,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
     config_class = SpeechEncoderDecoderConfig
     base_model_prefix = "speech_encoder_decoder"
     main_input_name = "inputs"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_param_buffer_assignment = False
     _supports_flash_attn_2 = True

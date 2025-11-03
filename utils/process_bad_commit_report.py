@@ -3,7 +3,7 @@
 This is used by `.github/workflows/check_failed_model_tests.yml` to produce a slack report of the following form
 
 ```
-<{url}|New failed tests>
+<{url}|New failed small_tests>
 {
    "GH_ydshieh": {
        "vit": 1
@@ -85,6 +85,6 @@ if __name__ == "__main__":
         author = f"GH_{author}"
         output[author] = item
 
-    report = f"<{url}|New failed tests>\\n\\n"
+    report = f"<{url}|New failed small_tests>\\n\\n"
     report += json.dumps(output, indent=4).replace('"', '\\"').replace("\n", "\\n")
     print(report)

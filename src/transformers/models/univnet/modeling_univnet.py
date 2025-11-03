@@ -479,6 +479,7 @@ UNIVNET_INPUTS_DOCSTRING = r"""
 class UnivNetModel(PreTrainedModel):
     config_class = UnivNetConfig
     main_input_name = "input_features"
+    input_modalities = "audio"
 
     def __init__(self, config: UnivNetConfig):
         super().__init__(config)

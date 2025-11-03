@@ -396,7 +396,7 @@ def get_tiny_config(config_class, model_class=None, **model_tester_kwargs):
         module_name = model_type_to_module_name(model_type)
         if not modeling_name.startswith(module_name):
             raise ValueError(f"{modeling_name} doesn't start with {module_name}!")
-        test_file = os.path.join("tests", "models", module_name, f"test_modeling_{modeling_name}.py")
+        test_file = os.path.join("small_tests", "models", module_name, f"test_modeling_{modeling_name}.py")
         models_to_model_testers = get_model_to_tester_mapping(test_file)
         # Find the model tester class
         model_tester_class = None
@@ -409,7 +409,7 @@ def get_tiny_config(config_class, model_class=None, **model_tester_kwargs):
         if len(tester_classes) > 0:
             # sort with the length of the class names first, then the alphabetical order
             # This is to avoid `T5EncoderOnlyModelTest` is used instead of `T5ModelTest`, which has
-            # `is_encoder_decoder=False` and causes some pipeline tests failing (also failures in `Optimum` CI).
+            # `is_encoder_decoder=False` and causes some pipeline small_tests failing (also failures in `Optimum` CI).
             # TODO: More fine grained control of the desired tester class.
             model_tester_class = sorted(tester_classes, key=lambda x: (len(x.__name__), x.__name__))[0]
     except ModuleNotFoundError:
@@ -447,7 +447,7 @@ def get_tiny_config(config_class, model_class=None, **model_tester_kwargs):
         raise ValueError(error)
 
     # make sure this is long enough (some model tester has `20` for this attr.) to pass `text-generation`
-    # pipeline tests.
+    # pipeline small_tests.
     max_positions = []
     for key in ["max_position_embeddings", "max_source_positions", "max_target_positions"]:
         if getattr(config, key, 0) > 0:
@@ -1376,7 +1376,7 @@ def build_simple_report(results):
 def update_tiny_model_summary_file(report_path):
     with open(os.path.join(report_path, "tiny_model_summary.json")) as fp:
         new_data = json.load(fp)
-    with open("tests/utils/tiny_model_summary.json") as fp:
+    with open("small_tests/utils/tiny_model_summary.json") as fp:
         data = json.load(fp)
     for key, value in new_data.items():
         if key not in data:
@@ -1489,9 +1489,9 @@ def create_tiny_models(
             json.dump(upload_results, fp, indent=4)
 
     # Build the tiny model summary file. The `tokenizer_classes` and `processor_classes` could be both empty lists.
-    # When using the items in this file to update the file `tests/utils/tiny_model_summary.json`, the model
+    # When using the items in this file to update the file `small_tests/utils/tiny_model_summary.json`, the model
     # architectures with `tokenizer_classes` and `processor_classes` being both empty should **NOT** be added to
-    # `tests/utils/tiny_model_summary.json`.
+    # `small_tests/utils/tiny_model_summary.json`.
     tiny_model_summary = build_tiny_model_summary(results, organization=organization, token=token)
     with open(os.path.join(report_path, "tiny_model_summary.json"), "w") as fp:
         json.dump(tiny_model_summary, fp, indent=4)

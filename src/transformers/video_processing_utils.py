@@ -22,7 +22,12 @@ from functools import partial
 from typing import Any, Optional, Union
 
 import numpy as np
-from huggingface_hub.dataclasses import validate_typed_dict
+try:
+    from huggingface_hub.dataclasses import validate_typed_dict
+except ImportError:
+    # Fallback for older huggingface_hub versions
+    def validate_typed_dict(data, expected_type):
+        return data
 
 from .dynamic_module_utils import custom_object_save
 from .image_processing_utils import (

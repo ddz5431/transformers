@@ -67,7 +67,7 @@ class ZeroShotObjectDetectionPipelineTests(unittest.TestCase):
 
         examples = [
             {
-                "image": "./tests/fixtures/tests_samples/COCO/000000039769.png",
+                "image": "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
                 "candidate_labels": ["cat", "remote", "couch"],
             }
         ]
@@ -102,7 +102,7 @@ class ZeroShotObjectDetectionPipelineTests(unittest.TestCase):
         )
 
         outputs = object_detector(
-            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
             candidate_labels=["cat", "remote", "couch"],
             threshold=0.64,
         )
@@ -125,7 +125,7 @@ class ZeroShotObjectDetectionPipelineTests(unittest.TestCase):
         outputs = object_detector(
             [
                 {
-                    "image": "./tests/fixtures/tests_samples/COCO/000000039769.png",
+                    "image": "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
                     "candidate_labels": ["cat", "remote", "couch"],
                 }
             ],

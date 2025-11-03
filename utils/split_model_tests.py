@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-This script is used to get the list of folders under `tests/models` and split the list into `NUM_SLICES` splits.
+This script is used to get the list of folders under `small_tests/models` and split the list into `NUM_SLICES` splits.
 The main use case is a GitHub Actions workflow file calling this script to get the (nested) list of folders allowing it
 to split the list of jobs to run into multiple slices each containing a smaller number of jobs. This way, we can bypass
 the maximum of 256 jobs in a matrix.
@@ -23,11 +23,11 @@ details.
 
 Usage:
 
-This script is required to be run under `tests` folder of `transformers` root directory.
+This script is required to be run under `small_tests` folder of `transformers` root directory.
 
 Assume we are under `transformers` root directory:
 ```bash
-cd tests
+cd small_tests
 python ../utils/split_model_tests.py --num_splits 64
 ```
 """

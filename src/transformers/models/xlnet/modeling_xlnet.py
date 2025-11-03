@@ -1369,6 +1369,7 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        logits_to_keep: Union[int, torch.Tensor] = 0,
         **kwargs,  # delete when `use_cache` is removed in XLNetModel
     ) -> Union[Tuple, XLNetLMHeadModelOutput]:
         r"""
@@ -1458,7 +1459,10 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
             **kwargs,
         )
 
-        logits = self.lm_loss(transformer_outputs[0])
+        hidden_states = transformer_outputs[0]
+        # Only compute necessary logits
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_loss(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:

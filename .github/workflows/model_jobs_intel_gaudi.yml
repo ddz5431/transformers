@@ -97,8 +97,8 @@ jobs:
           fi
           echo "machine_type=$machine_type" >> $GITHUB_ENV
 
-      - name: Run all tests on Gaudi
-        run: python3 -m pytest -v --make-reports=${{ env.machine_type }}_${{ inputs.report_name_prefix }}_${{ matrix.folders }}_test_reports tests/${{ matrix.folders }}
+      - name: Run all small_tests on Gaudi
+        run: python3 -m pytest -v --make-reports=${{ env.machine_type }}_${{ inputs.report_name_prefix }}_${{ matrix.folders }}_test_reports small_tests/${{ matrix.folders }}
 
       - name: Failure short reports
         if: ${{ failure() }}

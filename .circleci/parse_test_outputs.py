@@ -6,28 +6,28 @@ def parse_pytest_output(file_path):
     skipped_count = 0
     with open(file_path, 'r') as file:
         for line in file:
-            match = re.match(r'^SKIPPED \[(\d+)\] (tests/.*): (.*)$', line)
+            match = re.match(r'^SKIPPED \[(\d+)\] (small_tests/.*): (.*)$', line)
             if match:
                 skipped_count += 1
                 test_file, test_line, reason = match.groups()
                 skipped_tests[reason] = skipped_tests.get(reason, []) + [(test_file, test_line)]
     for k,v in sorted(skipped_tests.items(), key=lambda x:len(x[1])):
         print(f"{len(v):4} skipped because: {k}")
-    print("Number of skipped tests:", skipped_count)
+    print("Number of skipped small_tests:", skipped_count)
 
 def parse_pytest_failure_output(file_path):
     failed_tests = {}
     failed_count = 0
     with open(file_path, 'r') as file:
         for line in file:
-            match = re.match(r'^FAILED (tests/.*) - (.*): (.*)$', line)
+            match = re.match(r'^FAILED (small_tests/.*) - (.*): (.*)$', line)
             if match:
                 failed_count += 1
                 _, error, reason = match.groups()
                 failed_tests[reason] = failed_tests.get(reason, []) + [error]
     for k,v in sorted(failed_tests.items(), key=lambda x:len(x[1])):
         print(f"{len(v):4} failed because `{v[0]}` -> {k}")
-    print("Number of failed tests:", failed_count)
+    print("Number of failed small_tests:", failed_count)
     if failed_count>0:
         exit(1)
 
@@ -37,7 +37,7 @@ def parse_pytest_errors_output(file_path):
     error_count = 0
     with open(file_path, 'r') as file:
         for line in file:
-            match = re.match(r'^ERROR (tests/.*) - (.*): (.*)$', line)
+            match = re.match(r'^ERROR (small_tests/.*) - (.*): (.*)$', line)
             if match:
                 error_count += 1
                 _, test_error, reason = match.groups()
@@ -52,8 +52,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", help="file to parse")
     parser.add_argument("--skip", action="store_true", help="show skipped reasons")
-    parser.add_argument("--fail", action="store_true", help="show failed tests")
-    parser.add_argument("--errors", action="store_true", help="show failed tests")
+    parser.add_argument("--fail", action="store_true", help="show failed small_tests")
+    parser.add_argument("--errors", action="store_true", help="show failed small_tests")
     args = parser.parse_args()
 
     if args.skip:

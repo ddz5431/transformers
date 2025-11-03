@@ -562,6 +562,7 @@ class ViltPreTrainedModel(PreTrainedModel):
 
     config_class = ViltConfig
     base_model_prefix = "vilt"
+    input_modalities = ["image", "text"]
     supports_gradient_checkpointing = True
     _no_split_modules = ["ViltEmbeddings", "ViltSelfAttention"]
 

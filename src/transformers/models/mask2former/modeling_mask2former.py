@@ -2134,6 +2134,7 @@ class Mask2FormerPreTrainedModel(PreTrainedModel):
     config_class = Mask2FormerConfig
     base_model_prefix = "model"
     main_input_name = "pixel_values"
+    input_modalities = "image"
 
     def _init_weights(self, module: nn.Module):
         xavier_std = self.config.init_xavier_std

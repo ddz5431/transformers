@@ -628,6 +628,7 @@ class WavLMPreTrainedModel(PreTrainedModel):
     config_class = WavLMConfig
     base_model_prefix = "wavlm"
     main_input_name = "input_values"
+    input_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_flash_attn_2 = False
     _supports_sdpa = False

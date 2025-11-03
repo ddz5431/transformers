@@ -57,6 +57,7 @@ FUYU_START_DOCSTRING = r"""
 class FuyuPreTrainedModel(PreTrainedModel):
     config_class = FuyuConfig
     base_model_prefix = "fuyu"
+    input_modalities = ["image", "text"]
     supports_gradient_checkpointing = True
     _no_split_modules = []
     _skip_keys_device_placement = "past_key_values"

@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Usage:
-# RUN_SLOW=1 pytest -s tests/generation/test_flash_attention_parity.py
+# RUN_SLOW=1 pytest -s small_tests/generation/test_flash_attention_parity.py
 
 import unittest
 

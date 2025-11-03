@@ -1060,8 +1060,8 @@ class FSMTModel(PretrainedFSMTModel):
 
     def _tie_weights(self):
         if self.config.tie_word_embeddings:
-            self._tie_or_clone_weights(self.decoder.embed_tokens, self.get_input_embeddings())
-            self._tie_or_clone_weights(self.decoder.output_projection, self.get_input_embeddings())
+            self._tie_embedding_weights(self.decoder.embed_tokens, self.get_input_embeddings())
+            self._tie_embedding_weights(self.decoder.output_projection, self.get_input_embeddings())
 
     @add_start_docstrings_to_model_forward(FSMT_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -1111,6 +1111,9 @@ class FSMTModel(PretrainedFSMTModel):
 
         if decoder_input_ids is None and decoder_inputs_embeds is None:
             raise ValueError("Make sure that `decoder_input_ids` or `decoder_inputs_embeds` are passed.")
+
+        if use_cache and past_key_values is None:
+            past_key_values = EncoderDecoderCache(DynamicCache(config=self.config), DynamicCache(config=self.config))
 
         if encoder_outputs is None:
             encoder_outputs = self.encoder(

@@ -1,0 +1,64 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+================================================================================
+SEED CONTROL TEST: Do strategies produce identical outputs with same seed?
+================================================================================
+
+Loading model: meta-llama/Llama-3.2-3B-Instruct
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:03<00:03,  3.49s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:04<00:00,  1.82s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:04<00:00,  2.07s/it]
+
+Running experiment with seed control...
+- Dataset: gsm8k
+- Samples: 3
+- Strategies: every_3, every_5
+
+If seed control works: All samples should have IDENTICAL answers across strategies
+If bug exists: Some samples will still have DIFFERENT answers across strategies
+================================================================================
+
+================================================================================
+Running Frequency Ablation Experiment: gsm8k
+Strategies: ['every_n', 'every_n']
+Suffix: standard[0]
+================================================================================
+
+Loaded 3 samples
+
+--- Running strategy: every_n ---
+Processing samples:   0%|          | 0/3 [00:00<?, ?sample/s]Processing samples:   0%|          | 0/3 [00:00<?, ?sample/s]
+Traceback (most recent call last):
+  File "/home/ddz/projects/semantic-llm/test_seed_control.py", line 116, in <module>
+    main()
+  File "/home/ddz/projects/semantic-llm/test_seed_control.py", line 51, in main
+    results = runner.run_experiment(
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/src/llama_align/evaluation/experiment_runner.py", line 77, in run_experiment
+    results = self._run_strategy(
+              ^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/src/llama_align/evaluation/experiment_runner.py", line 171, in _run_strategy
+    for batch in tqdm(dataloader, desc="Processing samples", unit="sample"):
+  File "/home/ddz/projects/semantic-llm/.venv/lib/python3.12/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/home/ddz/projects/semantic-llm/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py", line 757, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/src/llama_align/utils/data_collator.py", line 45, in __call__
+    batch = super().__call__(examples)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/transformers/src/transformers/data/data_collator.py", line 225, in __call__
+    batch = pad_without_fast_tokenizer_warning(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/transformers/src/transformers/data/data_collator.py", line 63, in pad_without_fast_tokenizer_warning
+    padded = tokenizer.pad(*pad_args, **pad_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/transformers/src/transformers/tokenization_utils_base.py", line 3426, in pad
+    padding_strategy, _, max_length, _ = self._get_padding_truncation_strategies(
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ddz/projects/semantic-llm/transformers/src/transformers/tokenization_utils_base.py", line 2853, in _get_padding_truncation_strategies
+    raise ValueError(
+ValueError: Asking to pad but the tokenizer does not have a padding token. Please select a token to use as `pad_token` `(tokenizer.pad_token = tokenizer.eos_token e.g.)` or add a new pad token via `tokenizer.add_special_tokens({'pad_token': '[PAD]'})`.

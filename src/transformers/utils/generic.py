@@ -128,7 +128,7 @@ def is_tensor(x):
     Tests if `x` is a `torch.Tensor`, `tf.Tensor`, `jaxlib.xla_extension.DeviceArray`, `np.ndarray` or `mlx.array`
     in the order defined by `infer_framework_from_repr`
     """
-    # This gives us a smart order to test the frameworks with the corresponding tests.
+    # This gives us a smart order to test the frameworks with the corresponding small_tests.
     framework_to_test_func = _get_frameworks_and_test_func(x)
     for test_func in framework_to_test_func.values():
         if test_func(x):
@@ -282,7 +282,7 @@ def to_py_obj(obj):
         "np": lambda obj: obj.tolist(),
     }
 
-    # This gives us a smart order to test the frameworks with the corresponding tests.
+    # This gives us a smart order to test the frameworks with the corresponding small_tests.
     framework_to_test_func = _get_frameworks_and_test_func(obj)
     for framework, test_func in framework_to_test_func.items():
         if test_func(obj):
@@ -312,7 +312,7 @@ def to_numpy(obj):
     elif isinstance(obj, (list, tuple)):
         return np.array(obj)
 
-    # This gives us a smart order to test the frameworks with the corresponding tests.
+    # This gives us a smart order to test the frameworks with the corresponding small_tests.
     framework_to_test_func = _get_frameworks_and_test_func(obj)
     for framework, test_func in framework_to_test_func.items():
         if test_func(obj):

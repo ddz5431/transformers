@@ -132,7 +132,7 @@ class TestTrainerDistributed(TestCasePlus):
 if __name__ == "__main__":
     # The script below is meant to be run under torch.distributed, on a machine with multiple GPUs:
     #
-    # PYTHONPATH="src" python -m torch.distributed.run --nproc_per_node 2 --output_dir output_dir ./tests/test_trainer_distributed.py
+    # PYTHONPATH="src" python -m torch.distributed.run --nproc_per_node 2 --output_dir output_dir ./small_tests/test_trainer_distributed.py
 
     parser = HfArgumentParser((TrainingArguments,))
     training_args = parser.parse_args_into_dataclasses()[0]

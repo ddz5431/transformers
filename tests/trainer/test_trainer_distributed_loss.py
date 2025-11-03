@@ -3,7 +3,7 @@ import json
 import datasets
 import torch
 
-from tests.trainer.test_trainer import StoreLossCallback
+from small_tests.trainer.test_trainer import StoreLossCallback
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,

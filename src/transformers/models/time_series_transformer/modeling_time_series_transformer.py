@@ -629,6 +629,7 @@ class TimeSeriesTransformerPreTrainedModel(PreTrainedModel):
     config_class = TimeSeriesTransformerConfig
     base_model_prefix = "model"
     main_input_name = "past_values"
+    input_modalities = "time"
     supports_gradient_checkpointing = True
 
     def _init_weights(self, module):

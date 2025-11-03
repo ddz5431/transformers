@@ -78,7 +78,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_from_pretrained(self):
         """
-        Simple test that tests the basic usage of PEFT model through `from_pretrained`.
+        Simple test that small_tests the basic usage of PEFT model through `from_pretrained`.
         This checks if we pass a remote folder that contains an adapter config and adapter weights, it
         should correctly load a model that has adapters injected on it.
         """
@@ -171,7 +171,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_adapter(self):
         """
-        Simple test that tests if `add_adapter` works as expected
+        Simple test that small_tests if `add_adapter` works as expected
         """
         from peft import LoraConfig
 
@@ -189,7 +189,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_adapter_from_pretrained(self):
         """
-        Simple test that tests if `add_adapter` works as expected
+        Simple test that small_tests if `add_adapter` works as expected
         """
         from peft import LoraConfig
 
@@ -209,7 +209,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_adapter_modules_to_save(self):
         """
-        Simple test that tests if `add_adapter` works as expected when training with
+        Simple test that small_tests if `add_adapter` works as expected when training with
         modules to save.
         """
         from peft import LoraConfig
@@ -247,7 +247,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_adapter_training_gradient_checkpointing(self):
         """
-        Simple test that tests if `add_adapter` works as expected when training with
+        Simple test that small_tests if `add_adapter` works as expected when training with
         gradient checkpointing.
         """
         from peft import LoraConfig
@@ -293,7 +293,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_multi_adapter(self):
         """
-        Simple test that tests the basic usage of PEFT model through `from_pretrained`. This test tests if
+        Simple test that small_tests the basic usage of PEFT model through `from_pretrained`. This test small_tests if
         add_adapter works as expected in multi-adapter setting.
         """
         from peft import LoraConfig
@@ -389,7 +389,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
                 self.assertNotIn("adapter_2", model.peft_config)
                 self.assertFalse(model._hf_peft_config_loaded)
 
-                # Re-add adapters for edge case tests
+                # Re-add adapters for edge case small_tests
                 model.add_adapter(peft_config_1, adapter_name="adapter_1")
                 model.add_adapter(peft_config_2, adapter_name="adapter_2")
 
@@ -426,7 +426,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
     @require_bitsandbytes
     def test_peft_from_pretrained_kwargs(self):
         """
-        Simple test that tests the basic usage of PEFT model through `from_pretrained` + additional kwargs
+        Simple test that small_tests the basic usage of PEFT model through `from_pretrained` + additional kwargs
         and see if the integraiton behaves as expected.
         """
         for model_id in self.peft_test_model_ids:
@@ -444,7 +444,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
     @require_bitsandbytes
     def test_peft_save_quantized(self):
         """
-        Simple test that tests the basic usage of PEFT model save_pretrained with quantized base models
+        Simple test that small_tests the basic usage of PEFT model save_pretrained with quantized base models
         """
         # 4bit
         for model_id in self.peft_test_model_ids:
@@ -483,7 +483,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
     @require_bitsandbytes
     def test_peft_save_quantized_regression(self):
         """
-        Simple test that tests the basic usage of PEFT model save_pretrained with quantized base models
+        Simple test that small_tests the basic usage of PEFT model save_pretrained with quantized base models
         Regression test to make sure everything works as expected before the safetensors integration.
         """
         # 4bit
@@ -521,7 +521,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_pipeline(self):
         """
-        Simple test that tests the basic usage of PEFT model + pipeline
+        Simple test that small_tests the basic usage of PEFT model + pipeline
         """
         from transformers import pipeline
 
@@ -535,7 +535,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
 
     def test_peft_add_adapter_with_state_dict(self):
         """
-        Simple test that tests the basic usage of PEFT model through `from_pretrained`. This test tests if
+        Simple test that small_tests the basic usage of PEFT model through `from_pretrained`. This test small_tests if
         add_adapter works as expected with a state_dict being passed.
         """
         from peft import LoraConfig
@@ -750,7 +750,7 @@ class PeftIntegrationTester(unittest.TestCase, PeftTesterMixin):
         # requires a change to the model architecture. This is why load_adapter will fail in such cases and users should
         # instead set load_best_model_at_end=False and use PeftModel.from_pretrained. As this is not obvious, we now
         # intercept the error and add a helpful error message.
-        # This test checks this error message. It also tests the "happy path" (i.e. no error) when using LoRA.
+        # This test checks this error message. It also small_tests the "happy path" (i.e. no error) when using LoRA.
         from peft import LoraConfig, PrefixTuningConfig, TaskType, get_peft_model
 
         # create a small sequence classification dataset (binary classification)

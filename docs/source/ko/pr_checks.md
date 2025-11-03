@@ -134,7 +134,7 @@ make fix-copies
 추가적인 검사는 새로운 모델을 추가하는 PR에 대한 것으로, 주로 다음과 같습니다:
 
 - 추가된 모든 모델이 Auto-mapping에 있는지 (`utils/check_repo.py`에서 수행)
-<!-- TODO Sylvain, add a check that makes sure the common tests are implemented.-->
+<!-- TODO Sylvain, add a check that makes sure the common small_tests are implemented.-->
 - 모든 모델이 올바르게 테스트되었는지 (`utils/check_repo.py`에서 수행)
 
 <!-- TODO Sylvain, add the following

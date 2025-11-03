@@ -184,7 +184,7 @@ def reduce_by_error(logs, error_filter=None):
 def get_model(test):
     """Get the model name from a test method"""
     test = test.split("::")[0]
-    if test.startswith("tests/models/"):
+    if test.startswith("small_tests/models/"):
         test = test.split("/")[2]
     else:
         test = None
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     _job_links = get_job_links(args.workflow_run_id, token=args.token)
     job_links = {}
     # To deal with `workflow_call` event, where a job name is the combination of the job names in the caller and callee.
-    # For example, `PyTorch 1.11 / Model tests (models/albert, single-gpu)`.
+    # For example, `PyTorch 1.11 / Model small_tests (models/albert, single-gpu)`.
     if _job_links:
         for k, v in _job_links.items():
             # This is how GitHub actions combine job names.

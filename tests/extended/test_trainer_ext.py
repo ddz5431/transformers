@@ -126,7 +126,7 @@ class TestTrainerExt(TestCasePlus):
     @parameterized.expand(["base", "low", "high", "mixed"])
     @require_torch_multi_accelerator
     def test_trainer_log_level_replica(self, experiment_id):
-        # as each sub-test is slow-ish split into multiple sub-tests to avoid CI timeout
+        # as each sub-test is slow-ish split into multiple sub-small_tests to avoid CI timeout
         experiments = {
             # test with the default log_level - should be info and thus log info once
             "base": {"extra_args_str": "", "n_matches": 1},

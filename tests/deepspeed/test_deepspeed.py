@@ -23,9 +23,9 @@ from functools import partial
 import datasets
 from parameterized import parameterized
 
-import tests.trainer.test_trainer
+import small_tests.trainer.test_trainer
 import transformers
-from tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
+from small_tests.trainer.test_trainer import TrainerIntegrationCommon  # noqa
 from transformers import AutoModel, TrainingArguments, is_torch_available, logging
 from transformers.integrations.deepspeed import (
     HfDeepSpeedConfig,
@@ -57,13 +57,13 @@ from transformers.utils import SAFE_WEIGHTS_NAME, is_torch_bf16_available_on_dev
 if is_torch_available():
     import torch
 
-    from tests.trainer.test_trainer import (  # noqa
+    from small_tests.trainer.test_trainer import (  # noqa
         RegressionModelConfig,
         RegressionPreTrainedModel,
     )
 
     # hack to restore original logging level pre #21700
-    get_regression_trainer = partial(tests.trainer.test_trainer.get_regression_trainer, log_level="info")
+    get_regression_trainer = partial(small_tests.trainer.test_trainer.get_regression_trainer, log_level="info")
 
 
 set_seed(42)
@@ -87,7 +87,7 @@ def get_master_port(real_launcher=False):
     When using a single gpu launcher emulation (i.e. not deepspeed or python -m torch.distributed)
     the issue is that once the port is tied it can't be used anywhere else outside of this process,
     since torch.dist doesn't free the port until the process exits. Therefore for the sake of being
-    able to run both emulated launcher and normal launcher tests we need 2 distinct ports.
+    able to run both emulated launcher and normal launcher small_tests we need 2 distinct ports.
 
     This function will give the right port in the right context. For real launcher it'll give the
     base port, for emulated launcher it'll give the base port + 1. In both cases a string is
@@ -127,9 +127,9 @@ if is_deepspeed_available():
 
 
 def get_launcher(distributed=False):
-    # 1. explicitly set --num_nodes=1 just in case these tests end up run on a multi-node setup
+    # 1. explicitly set --num_nodes=1 just in case these small_tests end up run on a multi-node setup
     # - it won't be able to handle that
-    # 2. for now testing with just 2 gpus max (since some quality tests may give different
+    # 2. for now testing with just 2 gpus max (since some quality small_tests may give different
     # results with mode gpus because we use very little data)
     num_gpus = min(2, backend_device_count(torch_device)) if distributed else 1
     master_port = get_master_port(real_launcher=True)
@@ -193,7 +193,7 @@ class CoreIntegrationDeepSpeed(TestCasePlus, TrainerIntegrationCommon):
     def tearDown(self):
         super().tearDown()
 
-        # reset the ds config global so that tests state doesn't leak
+        # reset the ds config global so that small_tests state doesn't leak
         unset_hf_deepspeed_config()
 
     def test_init_zero3(self):
@@ -451,11 +451,11 @@ class TrainerIntegrationDeepSpeedWithCustomConfig(TestCasePlus):
     def tearDown(self):
         super().tearDown()
 
-        # reset the ds config global so that tests state doesn't leak
+        # reset the ds config global so that small_tests state doesn't leak
         unset_hf_deepspeed_config()
 
     def get_config_dict(self, stage):
-        # As some tests modify the dict, always make a copy
+        # As some small_tests modify the dict, always make a copy
         return deepcopy(self.ds_config_dict[stage])
 
 
@@ -471,18 +471,18 @@ class TrainerIntegrationDeepSpeed(TrainerIntegrationDeepSpeedWithCustomConfig, T
     which we can re-use here.
 
     Important: this class' setup can only work with a single gpu because it runs within the current
-    pytest worker. For multi-gpu tests use TestDeepSpeedWithLauncher.
+    pytest worker. For multi-gpu small_tests use TestDeepSpeedWithLauncher.
 
-    Note: if any of the tests of this class get run there will be at least one gpu occupied by them
+    Note: if any of the small_tests of this class get run there will be at least one gpu occupied by them
     until this pytest worker exits. This is because the gpu memory allocated by the cuda-kernels
     won't be released until this pytest worker exits.
 
-    This may appear as some run-away tests if you watch `nvidia-smi` while other tests that fork new
+    This may appear as some run-away small_tests if you watch `nvidia-smi` while other small_tests that fork new
     processes are run. So there will be one or two "stale" processes reported in `nvidia-smi`. This
     is not a bug.
     """
 
-    # --- These tests are enough to run on one of zero stages --- #
+    # --- These small_tests are enough to run on one of zero stages --- #
 
     def test_hf_ds_config_mismatch(self):
         ds_config = self.get_config_dict(ZERO2)
@@ -537,7 +537,7 @@ class TrainerIntegrationDeepSpeed(TrainerIntegrationDeepSpeedWithCustomConfig, T
             )
 
     # Test various combos
-    # 1. DS scheduler + DS optimizer: this is already tested by most other tests
+    # 1. DS scheduler + DS optimizer: this is already tested by most other small_tests
     # 2. HF scheduler + HF optimizer:
     # 3. DS scheduler + HF optimizer:
     # 4. HF scheduler + DS optimizer:
@@ -630,7 +630,7 @@ class TrainerIntegrationDeepSpeed(TrainerIntegrationDeepSpeedWithCustomConfig, T
             self.assertIn(f"Trial {n_trials - 1} finished with value", cs.err, "expected hyperparameter_search output")
             self.assertIn("Best is trial", cs.err, "expected hyperparameter_search output")
 
-    # --- These tests need to run on both zero stages --- #
+    # --- These small_tests need to run on both zero stages --- #
 
     @parameterized.expand(params, name_func=parameterized_custom_name_func)
     def test_hf_optimizer_with_offload(self, stage, dtype):
@@ -1120,15 +1120,15 @@ class TestDeepSpeedWithLauncher(TestCasePlus):
     # 1. predict_with_generate on multigpu - need to figure out how to give input sequences so that
     # the 2 gpus will generate prediction sequences that aren't of the same length - this is because
     # we had to code a special feature to sync the gpus when the predicted sequences aren't of the
-    # same length. In general this will tested as a side-effect through a variety of other tests -
+    # same length. In general this will tested as a side-effect through a variety of other small_tests -
     # it'll simply hang trying to synchronize with other gpus if this problem is encountered. So as
-    # long as we have a few full tests running on zero3 + predict_with_generate this should be
+    # long as we have a few full small_tests running on zero3 + predict_with_generate this should be
     # mostly covered.
     #
     # but there are 5 variations on beam search in `generate`- with identical code branched with `if
     # synced_gpus`
     #
-    # 2. most tests should probably be run on both: zero2 and zero3 configs
+    # 2. most small_tests should probably be run on both: zero2 and zero3 configs
     #
 
     @parameterized.expand(params, name_func=parameterized_custom_name_func)

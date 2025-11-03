@@ -51,7 +51,7 @@ jobs:
       - id: set-matrix
         if: contains(fromJSON('["run_models_gpu", "run_trainer_and_fsdp_gpu"]'), inputs.job)
         name: Identify models to test
-        working-directory: tests
+        working-directory: small_tests
         run: |
           if [ "${{ inputs.job }}" = "run_models_gpu" ]; then
             echo "folder_slices=$(python3 ../utils/split_model_tests.py --num_splits ${{ env.NUM_SLICES }})" >> $GITHUB_OUTPUT
@@ -64,7 +64,7 @@ jobs:
       - id: set-matrix-quantization
         if: ${{ inputs.job == 'run_quantization_torch_gpu' }}
         name: Identify quantization method to test
-        working-directory: tests
+        working-directory: small_tests
         run: |
           echo "quantization_matrix=$(python3 -c 'import os; tests = os.getcwd(); quantization_tests = os.listdir(os.path.join(tests, "quantization")); d = sorted(list(filter(os.path.isdir, [f"quantization/{x}" for x in quantization_tests]))) ;  print(d)')" >> $GITHUB_OUTPUT
 
@@ -155,7 +155,7 @@ jobs:
           fi
           echo "machine_type=$machine_type" >> $GITHUB_ENV
 
-      - name: Run all pipeline tests on Intel Gaudi
+      - name: Run all pipeline small_tests on Intel Gaudi
         run: |
           python3 -m pytest -v --make-reports=${{ env.machine_type }}_run_pipelines_torch_gpu_test_reports tests/pipelines -m "not not_device_test"
 
@@ -226,7 +226,7 @@ jobs:
           fi
           echo "machine_type=$machine_type" >> $GITHUB_ENV
 
-      - name: Run examples tests on Intel Gaudi
+      - name: Run examples small_tests on Intel Gaudi
         run: |
           pip install -r examples/pytorch/_tests_requirements.txt
           python3 -m pytest -v --make-reports=${{ env.machine_type }}_run_examples_gpu_test_reports examples/pytorch -m "not not_device_test"
@@ -246,7 +246,7 @@ jobs:
 
   run_torch_cuda_extensions_gpu:
     if: ${{ inputs.job == 'run_torch_cuda_extensions_gpu' }}
-    name: Intel Gaudi deepspeed tests
+    name: Intel Gaudi deepspeed small_tests
     strategy:
       fail-fast: false
       matrix:
@@ -299,7 +299,7 @@ jobs:
           fi
           echo "machine_type=$machine_type" >> $GITHUB_ENV
 
-      - name: Run all deepspeed tests on intel Gaudi
+      - name: Run all deepspeed small_tests on intel Gaudi
         run: |
           python3 -m pytest -v --make-reports=${{ env.machine_type }}_run_torch_cuda_extensions_gpu_test_reports tests/deepspeed -m "not not_device_test"
 

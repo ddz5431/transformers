@@ -57,7 +57,7 @@ RUN pip install vptq
 # Add hqq for quantization testing
 RUN python3 -m pip install --no-cache-dir hqq
 
-# For GGUF tests
+# For GGUF small_tests
 RUN python3 -m pip install --no-cache-dir gguf
 
 # Add autoawq for quantization testing

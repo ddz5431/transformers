@@ -1126,6 +1126,8 @@ class MusicgenMelodyModel(MusicgenMelodyPreTrainedModel):
 )
 # Copied from transformers.models.musicgen.modeling_musicgen.MusicgenForCausalLM with MUSICGEN->MUSICGEN_MELODY,Musicgen->MusicgenMelody,MusicGen->Musicgen Melody
 class MusicgenMelodyForCausalLM(MusicgenMelodyPreTrainedModel, GenerationMixin):
+    output_modalities = "audio"
+
     def __init__(self, config: MusicgenMelodyDecoderConfig):
         super().__init__(config)
 
@@ -1600,6 +1602,7 @@ class MusicgenMelodyForCausalLM(MusicgenMelodyPreTrainedModel, GenerationMixin):
 class MusicgenMelodyForConditionalGeneration(PreTrainedModel, GenerationMixin):
     config_class = MusicgenMelodyConfig
     main_input_name = "input_ids"
+    output_modalities = "audio"
     supports_gradient_checkpointing = True
     _supports_flash_attn_2 = True
     _supports_sdpa = True

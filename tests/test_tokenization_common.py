@@ -90,7 +90,7 @@ def use_cache_if_possible(func):
         cached = func(*args, **kwargs)
         copied = copy.deepcopy(cached)
 
-        if hasattr(copied, "_tokenizer") and "tests.models.clip.test_tokenization_clip.CLIPTokenizationTest" in str(
+        if hasattr(copied, "_tokenizer") and "small_tests.models.clip.test_tokenization_clip.CLIPTokenizationTest" in str(
             args[0]
         ):
             copied._tokenizer = cached._tokenizer
@@ -338,7 +338,7 @@ class TokenizerTesterMixin:
                 The model name of the tokenizer to load and use.
             revision:
                 The full git revision number of the model. This is to pin the
-                tokenizer config and to avoid that tests start to fail if the
+                tokenizer config and to avoid that small_tests start to fail if the
                 config gets changed upstream.
             sequences:
                 Can overwrite the texts that are used to check the tokenizer.
@@ -750,7 +750,7 @@ class TokenizerTesterMixin:
         tokenizers = self.get_tokenizers()
         for tokenizer in tokenizers:
             with self.subTest(f"{tokenizer.__class__.__name__}"):
-                # Isolate this from the other tests because we save additional tokens/etc
+                # Isolate this from the other small_tests because we save additional tokens/etc
                 tmpdirname = tempfile.mkdtemp()
 
                 sample_text = " He is very happy, UNwant\u00e9d,running"
@@ -769,7 +769,7 @@ class TokenizerTesterMixin:
         tokenizers = self.get_tokenizers(model_max_length=42)
         for tokenizer in tokenizers:
             with self.subTest(f"{tokenizer.__class__.__name__}"):
-                # Isolate this from the other tests because we save additional tokens/etc
+                # Isolate this from the other small_tests because we save additional tokens/etc
                 tmpdirname = tempfile.mkdtemp()
 
                 sample_text = " He is very happy, UNwant\u00e9d,running"
@@ -805,7 +805,7 @@ class TokenizerTesterMixin:
             if not tokenizer.is_fast:
                 continue
             with self.subTest(f"{tokenizer.__class__.__name__}"):
-                # Isolate this from the other tests because we save additional tokens/etc
+                # Isolate this from the other small_tests because we save additional tokens/etc
                 tmpdirname = tempfile.mkdtemp()
 
                 sample_text = " He is very happy, UNwant\u00e9d,running"
@@ -939,7 +939,7 @@ class TokenizerTesterMixin:
 
                 self.assertNotEqual(vocab_size, 0)
 
-                # We usually have added tokens from the start in tests (but also otherwise) because our vocab fixtures are
+                # We usually have added tokens from the start in small_tests (but also otherwise) because our vocab fixtures are
                 # smaller than the original vocabs - let's not assert this
                 # self.assertEqual(vocab_size, all_size)
 
@@ -2672,7 +2672,7 @@ class TokenizerTesterMixin:
         )
 
     def test_separate_tokenizers(self):
-        # This tests that tokenizers don't impact others. Unfortunately the case where it fails is when
+        # This small_tests that tokenizers don't impact others. Unfortunately the case where it fails is when
         # we're loading an S3 configuration from a pre-trained identifier, and we have no way of testing those today.
 
         tokenizers = self.get_tokenizers(random_argument=True)
@@ -2842,7 +2842,7 @@ class TokenizerTesterMixin:
     def test_batch_encode_plus_padding(self):
         # Test that padded sequences are equivalent between batch_encode_plus and encode_plus
 
-        # Right padding tests
+        # Right padding small_tests
         tokenizers = self.get_tokenizers(do_lower_case=False)
         for tokenizer in tokenizers:
             with self.subTest(f"{tokenizer.__class__.__name__}"):
@@ -2868,7 +2868,7 @@ class TokenizerTesterMixin:
                     encoded_sequences, self.convert_batch_encode_plus_format_to_encode_plus(encoded_sequences_batch)
                 )
 
-        # Left padding tests
+        # Left padding small_tests
         tokenizers = self.get_tokenizers(do_lower_case=False)
         for tokenizer in tokenizers:
             with self.subTest(f"{tokenizer.__class__.__name__}"):
@@ -3036,7 +3036,7 @@ class TokenizerTesterMixin:
                 else:
                     tokenizer.encode_plus(sequences, padding=True)
 
-            # add pad_token_id to pass subsequent tests
+            # add pad_token_id to pass subsequent small_tests
             tokenizer.add_special_tokens({"pad_token": "<PAD>"})
 
     @require_torch

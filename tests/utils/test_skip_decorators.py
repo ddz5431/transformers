@@ -22,10 +22,10 @@
 # the following 4 should be run. But since we have different CI jobs running
 # different configs, all combinations should get covered
 #
-# RUN_SLOW=1 pytest -rA tests/test_skip_decorators.py
-# RUN_SLOW=1 CUDA_VISIBLE_DEVICES="" pytest -rA tests/test_skip_decorators.py
-# RUN_SLOW=0 pytest -rA tests/test_skip_decorators.py
-# RUN_SLOW=0 CUDA_VISIBLE_DEVICES="" pytest -rA tests/test_skip_decorators.py
+# RUN_SLOW=1 pytest -rA small_tests/test_skip_decorators.py
+# RUN_SLOW=1 CUDA_VISIBLE_DEVICES="" pytest -rA small_tests/test_skip_decorators.py
+# RUN_SLOW=0 pytest -rA small_tests/test_skip_decorators.py
+# RUN_SLOW=0 CUDA_VISIBLE_DEVICES="" pytest -rA small_tests/test_skip_decorators.py
 
 import os
 import unittest
@@ -36,7 +36,7 @@ from parameterized import parameterized
 from transformers.testing_utils import require_torch, require_torch_gpu, slow, torch_device
 
 
-# skipping in unittest tests
+# skipping in unittest small_tests
 
 params = [(1,)]
 
@@ -71,9 +71,9 @@ class SkipTester(unittest.TestCase):
     def test_2_skips_slow_last(self):
         check_slow_torch_cuda()
 
-    # The combination of any skip decorator, followed by parameterized fails to skip the tests
+    # The combination of any skip decorator, followed by parameterized fails to skip the small_tests
     # 1. @slow manages to correctly skip `test_param_slow_first`
-    # 2. but then `parameterized` creates new tests, with a unique name for each parameter groups.
+    # 2. but then `parameterized` creates new small_tests, with a unique name for each parameter groups.
     #    It has no idea that they are to be skipped and so they all run, ignoring @slow
     # Therefore skip decorators must come after `parameterized`
     #
@@ -83,7 +83,7 @@ class SkipTester(unittest.TestCase):
     #     check_slow()
 
     # This works as expected:
-    # 1. `parameterized` creates new tests with unique names
+    # 1. `parameterized` creates new small_tests with unique names
     # 2. each of them gets an opportunity to be skipped
     @parameterized.expand(params)
     @slow
@@ -91,7 +91,7 @@ class SkipTester(unittest.TestCase):
         check_slow()
 
 
-# skipping in non-unittest tests
+# skipping in non-unittest small_tests
 # no problem at all here
 
 

@@ -180,7 +180,7 @@ You'll need **[Python 3.9](https://github.com/huggingface/transformers/blob/main
    passes. Run the tests impacted by your changes like this:
 
    ```bash
-   pytest tests/<TEST_TO_RUN>.py
+   pytest small_tests/<TEST_TO_RUN>.py
    ```
 
    For more information about tests, check out the
@@ -311,7 +311,7 @@ We like `pytest` and `pytest-xdist` because it's faster. From the root of the
 repository, specify a *path to a subfolder or a test file* to run the test:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 ```
 
 Similarly, for the `examples` directory, specify a *path to a subfolder or test file* to run the test. For example, the following command tests the text classification subfolder in the PyTorch `examples` directory:
@@ -337,7 +337,7 @@ Remember to specify a *path to a subfolder or a test file* to run the test. Othe
 </Tip>
 
 ```bash
-RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classification
 ```
 
@@ -353,7 +353,7 @@ This means `unittest` is fully supported. Here's how to run tests with
 `unittest`:
 
 ```bash
-python -m unittest discover -s tests -t . -v
+python -m unittest discover -s small_tests -t . -v
 python -m unittest discover -s examples -t examples -v
 ```
 

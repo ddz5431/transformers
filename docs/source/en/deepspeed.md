@@ -602,7 +602,7 @@ To deploy DeepSpeed on multiple GPUs, add `--num_gpus`. You don't need to add `-
 
 ```bash
 deepspeed --num_gpus=2 examples/pytorch/translation/run_translation.py \
---deepspeed tests/deepspeed/ds_config_zero3.json \
+--deepspeed small_tests/deepspeed/ds_config_zero3.json \
 --model_name_or_path google-t5/t5-small --per_device_train_batch_size 1 \
 --output_dir output_dir --overwrite_output_dir --fp16 \
 --do_train --max_train_samples 500 --num_train_epochs 1 \
@@ -625,7 +625,7 @@ To deploy DeepSpeed on a single GPU, add `--num_gpus`. You don't need to add `--
 
 ```bash
 deepspeed --num_gpus=1 examples/pytorch/translation/run_translation.py \
---deepspeed tests/deepspeed/ds_config_zero2.json \
+--deepspeed small_tests/deepspeed/ds_config_zero2.json \
 --model_name_or_path google-t5/t5-small --per_device_train_batch_size 1 \
 --output_dir output_dir --overwrite_output_dir --fp16 \
 --do_train --max_train_samples 500 --num_train_epochs 1 \

@@ -45,7 +45,7 @@ Es gibt 2 Testsuiten im Repository:
      `tests` und `examples`:
 
 ```bash
-RUN_SLOW=1 pytest tests/
+RUN_SLOW=1 pytest small_tests/
 RUN_SLOW=1 pytest examples/
 ```
 
@@ -81,7 +81,7 @@ make test
 Beachten Sie, dass Letzteres wie folgt definiert ist:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/
 ```
 
 was pytest anweist:
@@ -104,7 +104,7 @@ pytest --collect-only -q
 Alle Tests einer bestimmten Testdatei:
 
 ```bash
-pytest tests/test_optimization.py --collect-only -q
+pytest small_tests/test_optimization.py --collect-only -q
 ```
 
 ### Führen Sie ein bestimmtes Testmodul aus
@@ -112,7 +112,7 @@ pytest tests/test_optimization.py --collect-only -q
 Um ein einzelnes Testmodul auszuführen:
 
 ```bash
-pytest tests/utils/test_logging.py
+pytest small_tests/utils/test_logging.py
 ```
 
 ### Spezifische Tests ausführen
@@ -121,7 +121,7 @@ Da unittest in den meisten Tests verwendet wird, müssen Sie, um bestimmte Unter
 Klasse, die diese Tests enthält. Er könnte zum Beispiel lauten:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest::test_adam_w
+pytest small_tests/test_optimization.py::OptimizationTest::test_adam_w
 ```
 
 Hier:
@@ -133,7 +133,7 @@ Hier:
 Wenn die Datei mehrere Klassen enthält, können Sie auswählen, dass nur die Tests einer bestimmten Klasse ausgeführt werden sollen. Zum Beispiel:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest
+pytest small_tests/test_optimization.py::OptimizationTest
 ```
 
 führt alle Tests innerhalb dieser Klasse aus.
@@ -141,7 +141,7 @@ führt alle Tests innerhalb dieser Klasse aus.
 Wie bereits erwähnt, können Sie sehen, welche Tests in der Klasse `OptimizationTest` enthalten sind, indem Sie sie ausführen:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest --collect-only -q
+pytest small_tests/test_optimization.py::OptimizationTest --collect-only -q
 ```
 
 Sie können Tests mit Hilfe von Schlüsselwortausdrücken ausführen.
@@ -149,7 +149,7 @@ Sie können Tests mit Hilfe von Schlüsselwortausdrücken ausführen.
 Um nur Tests auszuführen, deren Name `adam` enthält:
 
 ```bash
-pytest -k adam tests/test_optimization.py
+pytest -k adam small_tests/test_optimization.py
 ```
 
 Die logischen `und` und `oder` können verwendet werden, um anzugeben, ob alle Schlüsselwörter übereinstimmen sollen oder nur eines. `nicht` kann verwendet werden, um
@@ -158,19 +158,19 @@ negieren.
 Um alle Tests auszuführen, außer denen, deren Name `adam` enthält:
 
 ```bash
-pytest -k "not adam" tests/test_optimization.py
+pytest -k "not adam" small_tests/test_optimization.py
 ```
 
 Und Sie können die beiden Muster in einem kombinieren:
 
 ```bash
-pytest -k "ada and not adam" tests/test_optimization.py
+pytest -k "ada and not adam" small_tests/test_optimization.py
 ```
 
 Um zum Beispiel sowohl `test_adafactor` als auch `test_adam_w` auszuführen, können Sie verwenden:
 
 ```bash
-pytest -k "test_adam_w or test_adam_w" tests/test_optimization.py
+pytest -k "test_adam_w or test_adam_w" small_tests/test_optimization.py
 ```
 
 Beachten Sie, dass wir hier `oder` verwenden, da wir wollen, dass eines der Schlüsselwörter übereinstimmt, um beide einzuschließen.
@@ -178,14 +178,14 @@ Beachten Sie, dass wir hier `oder` verwenden, da wir wollen, dass eines der Schl
 Wenn Sie nur Tests einschließen möchten, die beide Muster enthalten, müssen Sie `und` verwenden:
 
 ```bash
-pytest -k "test and ada" tests/test_optimization.py
+pytest -k "test and ada" small_tests/test_optimization.py
 ```
 
 ### Führen Sie `accelerate` Tests durch
 
 Manchmal müssen Sie `accelerate` Tests für Ihre Modelle ausführen. Dazu fügen Sie einfach `-m accelerate_tests` zu Ihrem Befehl hinzu, wenn Sie diese Tests bei einem `OPT`-Lauf ausführen möchten:
 ```bash
-RUN_SLOW=1 pytest -m accelerate_tests tests/models/opt/test_modeling_opt.py
+RUN_SLOW=1 pytest -m accelerate_tests small_tests/models/opt/test_modeling_opt.py
 ```
 
 
@@ -279,7 +279,7 @@ Wenn Sie alle Testmodule ausführen möchten, mit Ausnahme einiger weniger, kön
 Beispiel: Um alle Tests außer `test_modeling_*.py` auszuführen:
 
 ```bash
-pytest *ls -1 tests/*py | grep -v test_modeling*
+pytest *ls -1 small_tests/*py | grep -v test_modeling*
 ```
 
 ### Status leeren
@@ -287,7 +287,7 @@ pytest *ls -1 tests/*py | grep -v test_modeling*
 CI-Builds und wenn Isolation wichtig ist (gegen Geschwindigkeit), sollte der Cache geleert werden:
 
 ```bash
-pytest --cache-clear tests
+pytest --cache-clear small_tests
 ```
 
 ### Tests parallel ausführen
@@ -320,7 +320,7 @@ pip install pytest-flakefinder
 Und führen Sie dann jeden Test mehrmals durch (standardmäßig 50):
 
 ```bash
-pytest --flake-finder --flake-runs=5 tests/test_failing_test.py
+pytest --flake-finder --flake-runs=5 small_tests/test_failing_test.py
 ```
 
 <Tip>
@@ -348,7 +348,7 @@ Wie bereits erläutert, ermöglicht dies die Erkennung von gekoppelten Tests - b
 `pytest-random-order` installiert ist, gibt es den Zufallswert aus, der für diese Sitzung verwendet wurde, z.B:
 
 ```bash
-pytest tests
+pytest small_tests
 [...]
 Using --random-order-bucket=module
 Using --random-order-seed=573663
@@ -368,7 +368,7 @@ die Liste manuell einzugrenzen, können Sie sich nicht mehr auf den Seed verlass
 auflisten und pytest anweisen, sie nicht zu randomisieren, indem Sie `--random-order-bucket=none` verwenden, z.B.:
 
 ```bash
-pytest --random-order-bucket=none tests/test_a.py tests/test_c.py tests/test_b.py
+pytest --random-order-bucket=none small_tests/test_a.py small_tests/test_c.py small_tests/test_b.py
 ```
 
 So deaktivieren Sie das Shuffling für alle Tests:
@@ -411,7 +411,7 @@ oder deinstallieren Sie es.
 Für einen einzelnen oder eine Gruppe von Tests über `pytest` (nach `pip install pytest-pspec`):
 
 ```bash
-pytest --pspec tests/test_optimization.py
+pytest --pspec small_tests/test_optimization.py
 ```
 
 #### Zeigt fehlgeschlagene Tests sofort an
@@ -432,14 +432,14 @@ pytest --instafail
 Bei einem GPU-aktivierten Setup fügen Sie zum Testen im reinen CPU-Modus `CUDA_VISIBLE_DEVICES=""` hinzu:
 
 ```bash
-CUDA_VISIBLE_DEVICES="" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="" pytest small_tests/utils/test_logging.py
 ```
 
 oder wenn Sie mehrere Grafikprozessoren haben, können Sie angeben, welcher von `pytest` verwendet werden soll. Wenn Sie zum Beispiel nur den
 zweiten Grafikkarte zu verwenden, wenn Sie die Grafikkarten `0` und `1` haben, können Sie folgendes ausführen:
 
 ```bash
-CUDA_VISIBLE_DEVICES="1" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="1" pytest small_tests/utils/test_logging.py
 ```
 
 Dies ist praktisch, wenn Sie verschiedene Aufgaben auf verschiedenen GPUs ausführen möchten.
@@ -515,14 +515,14 @@ n_gpu = get_gpu_count()  # works with torch and tf
 
 Um die Testsuite auf einem bestimmten Torch-Gerät auszuführen, fügen Sie `TRANSFORMERS_TEST_DEVICE="$Gerät"` hinzu, wobei `$Gerät` das Ziel-Backend ist. Zum Beispiel, um nur auf der CPU zu testen:
 ```bash
-TRANSFORMERS_TEST_DEVICE="cpu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_DEVICE="cpu" pytest small_tests/utils/test_logging.py
 ```
 
 Diese Variable ist nützlich, um benutzerdefinierte oder weniger verbreitete PyTorch-Backends wie `mps` zu testen. Sie kann auch verwendet werden, um den gleichen Effekt wie `CUDA_VISIBLE_DEVICES` zu erzielen, indem Sie bestimmte GPUs anvisieren oder im reinen CPU-Modus testen.
 
 Bestimmte Geräte erfordern einen zusätzlichen Import, nachdem Sie `torch` zum ersten Mal importiert haben. Dies kann über die Umgebungsvariable `TRANSFORMERS_TEST_BACKEND` festgelegt werden:
 ```bash
-TRANSFORMERS_TEST_BACKEND="torch_npu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_BACKEND="torch_npu" pytest small_tests/utils/test_logging.py
 ```
 
 
@@ -542,7 +542,7 @@ Um direkt mit der Ausführung zu beginnen, suchen Sie in diesen Tests nach dem A
 Sie benötigen mindestens 2 GPUs, um diese Tests in Aktion zu sehen:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
+CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv small_tests/test_trainer_distributed.py
 ```
 
 ### Erfassung von Ausgaben
@@ -553,13 +553,13 @@ wird die entsprechende aufgezeichnete Ausgabe in der Regel zusammen mit dem Fehl
 Um die Aufzeichnung von Ausgaben zu deaktivieren und `stdout` und `stderr` normal zu erhalten, verwenden Sie `-s` oder `--capture=no`:
 
 ```bash
-pytest -s tests/utils/test_logging.py
+pytest -s small_tests/utils/test_logging.py
 ```
 
 So senden Sie Testergebnisse an die JUnit-Formatausgabe:
 
 ```bash
-py.test tests --junitxml=result.xml
+py.test small_tests --junitxml=result.xml
 ```
 
 ### Farbsteuerung
@@ -567,7 +567,7 @@ py.test tests --junitxml=result.xml
 Keine Farbe zu haben (z.B. gelb auf weißem Hintergrund ist nicht lesbar):
 
 ```bash
-pytest --color=no tests/utils/test_logging.py
+pytest --color=no small_tests/utils/test_logging.py
 ```
 
 ### Testbericht an den Online-Dienst pastebin senden
@@ -575,7 +575,7 @@ pytest --color=no tests/utils/test_logging.py
 Erstellen Sie eine URL für jeden Testfehler:
 
 ```bash
-pytest --pastebin=failed tests/utils/test_logging.py
+pytest --pastebin=failed small_tests/utils/test_logging.py
 ```
 
 Dadurch werden Informationen über den Testlauf an einen entfernten Paste-Dienst übermittelt und eine URL für jeden Fehlschlag bereitgestellt. Sie können die
@@ -584,7 +584,7 @@ Tests wie gewohnt auswählen oder z.B. -x hinzufügen, wenn Sie nur einen bestim
 Erstellen einer URL für ein ganzes Testsitzungsprotokoll:
 
 ```bash
-pytest --pastebin=all tests/utils/test_logging.py
+pytest --pastebin=all small_tests/utils/test_logging.py
 ```
 
 ## Tests schreiben
@@ -626,13 +626,13 @@ die entsprechenden Argumente in der Parameterliste.
 Sie können auch nur die Parameter `negativ` und `ganzzahlig` mit ausführen:
 
 ```bash
-pytest -k "negative and integer" tests/test_mytest.py
+pytest -k "negative and integer" small_tests/test_mytest.py
 ```
 
 oder alle Untertests außer `negativ`, mit:
 
 ```bash
-pytest -k "not negative" tests/test_mytest.py
+pytest -k "not negative" small_tests/test_mytest.py
 ```
 
 Neben der Verwendung des gerade erwähnten Filters `-k` können Sie auch den genauen Namen jedes Untertests herausfinden und jeden
@@ -893,7 +893,7 @@ oder das ganze Modul:
 import pytest
 
 if not pytest.config.getoption("--custom-flag"):
-    pytest.skip("--custom-flag is missing, skipping tests", allow_module_level=True)
+    pytest.skip("--custom-flag is missing, skipping small_tests", allow_module_level=True)
 ```
 
 oder mit dem `xfail` Weg:
@@ -948,7 +948,7 @@ def test_integration_foo():
 Sobald ein Test als `@slow` markiert ist, setzen Sie die Umgebungsvariable `RUN_SLOW=1`, um solche Tests auszuführen, z.B:
 
 ```bash
-RUN_SLOW=1 pytest tests
+RUN_SLOW=1 pytest small_tests
 ```
 
 Einige Dekoratoren wie `@parameterized` schreiben Testnamen um, daher müssen `@slow` und die übrigen Skip-Dekoratoren
@@ -988,7 +988,7 @@ haben eine sehr geringe Anzahl von Schichten (z.B. 2), Vokabeln (z.B. 1000), usw
 langsame Modelle verwenden, um qualitative Tests durchzuführen. Um die Verwendung dieser Modelle zu sehen, suchen Sie einfach nach *winzigen* Modellen mit:
 
 ```bash
-grep tiny tests examples
+grep tiny small_tests examples
 ```
 
 Hier ist ein Beispiel für ein [Skript](https://github.com/huggingface/transformers/tree/main/scripts/fsmt/fsmt-make-tiny-model.py), das das winzige Modell erstellt hat
@@ -1214,7 +1214,7 @@ tf.random.set_seed(seed)
 Um einen Debugger an der Stelle zu starten, an der die Warnung auftritt, gehen Sie wie folgt vor:
 
 ```bash
-pytest tests/utils/test_logging.py -W error::UserWarning --pdb
+pytest small_tests/utils/test_logging.py -W error::UserWarning --pdb
 ```
 
 ## Arbeiten mit Github-Aktionen-Workflows

@@ -857,6 +857,7 @@ class FlavaPreTrainedModel(PreTrainedModel):
 
     config_class = FlavaConfig
     base_model_prefix = "flava"
+    input_modalities = ["image", "text"]
     supports_gradient_checkpointing = True
 
     def _init_weights(self, module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm]) -> None:
@@ -897,6 +898,7 @@ class FlavaImageModel(FlavaPreTrainedModel):
     # This override allows us to load FlavaImageModel from FlavaModel/FlavaForPreTraining checkpoints.
     base_model_prefix = "flava.image_model"
     main_input_name = "pixel_values"
+    input_modalities = "image"
 
     def __init__(self, config: FlavaImageConfig, add_pooling_layer: bool = True):
         super().__init__(config)
@@ -995,6 +997,7 @@ class FlavaTextModel(FlavaPreTrainedModel):
     config_class = FlavaTextConfig
     # This override allows us to load FlavaTextModel from FlavaModel/FlavaForPreTraining checkpoints.
     base_model_prefix = "flava.text_model"
+    input_modalities = "text"
 
     def __init__(self, config: FlavaTextConfig, add_pooling_layer: bool = True):
         super().__init__(config)
@@ -1533,6 +1536,7 @@ class FlavaImageCodebook(FlavaPreTrainedModel):
     base_model_prefix = ""
     config_class = FlavaImageCodebookConfig
     main_input_name = "pixel_values"
+    input_modalities = "image"
     supports_gradient_checkpointing = False
 
     def __init__(

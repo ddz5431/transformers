@@ -28,7 +28,7 @@ import check_copies  # noqa: E402
 from check_copies import convert_to_localized_md, find_code_in_transformers, is_copy_consistent  # noqa: E402
 
 
-# This is the reference code that will be used in the tests.
+# This is the reference code that will be used in the small_tests.
 # If BertLMPredictionHead is changed in modeling_bert.py, this code needs to be manually updated.
 REFERENCE_CODE = """    def __init__(self, config):
         super().__init__()

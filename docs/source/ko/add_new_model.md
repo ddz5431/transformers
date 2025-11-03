@@ -515,7 +515,7 @@ output = model(input_ids).last_hidden_states
 이 시점에서 새로운 모델을 성공적으로 추가했습니다. 그러나 해당 모델이 요구되는 디자인에 완전히 부합하지 않을 수도 있습니다. 🤗 Transformers와 완벽하게 호환되는 구현인지 확인하기 위해 모든 일반 테스트를 통과해야 합니다. Cookiecutter는 아마도 모델을 위한 테스트 파일을 자동으로 추가했을 것입니다. 아마도 `tests/models/brand_new_bert/test_modeling_brand_new_bert.py`와 같은 경로에 위치할 것입니다. 이 테스트 파일을 실행하여 일반 테스트가 모두 통과하는지 확인하세요.
 
 ```bash
-pytest tests/models/brand_new_bert/test_modeling_brand_new_bert.py
+pytest small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py
 ```
 
 모든 일반 테스트를 수정한 후, 이제 수행한 작업을 충분히 테스트하여 다음 사항을 보장해야 합니다.
@@ -526,7 +526,7 @@ pytest tests/models/brand_new_bert/test_modeling_brand_new_bert.py
 먼저 통합 테스트를 추가해야 합니다. 이러한 통합 테스트는 이전에 모델을 🤗 Transformers로 구현하기 위해 사용한 디버깅 스크립트와 동일한 작업을 수행합니다. Cookiecutter에 이미 이러한 모델 테스트의 템플릿인 `BrandNewBertModelIntegrationTests`가 추가되어 있으며, 여러분이 작성해야 할 내용으로만 채워 넣으면 됩니다. 이러한 테스트가 통과하는지 확인하려면 다음을 실행하세요.
 
 ```bash
-RUN_SLOW=1 pytest -sv tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
+RUN_SLOW=1 pytest -sv small_tests/models/brand_new_bert/test_modeling_brand_new_bert.py::BrandNewBertModelIntegrationTests
 ```
 
 <Tip>

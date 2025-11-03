@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-This util provides a way to manually run the tests of the transformers repo as they would be run by the CI.
-It was mainly used for models tests, so if you find features missing for another suite, do not hesitate to open a PR.
+This util provides a way to manually run the small_tests of the transformers repo as they would be run by the CI.
+It was mainly used for models small_tests, so if you find features missing for another suite, do not hesitate to open a PR.
 
 Functionnalities:
 - Running specific test suite (models, tokenizers, etc.)
 - Parallel execution across multiple processes (each has to be launched separately with different `--processes` argument)
-- GPU/CPU test filtering and slow tests filter
+- GPU/CPU test filtering and slow small_tests filter
 - Temporary cache management for isolated test runs
 - Resume functionality for interrupted test runs
 - Important models subset testing
@@ -51,12 +51,12 @@ def run_pytest(
     """
     Execute pytest on a specific test directory with configured options:
         - suite (str): name of the test suite being run (e.g., 'models', 'tokenizers')
-        - subdir (Path): the specific directory containing tests to run
-        - root_test_dir (Path): the root directory of all tests, used for relative paths
+        - subdir (Path): the specific directory containing small_tests to run
+        - root_test_dir (Path): the root directory of all small_tests, used for relative paths
         - machine_type (str): type of machine/environment (e.g., 'cpu', 'single-gpu', 'multi-gpu')
         - dry_run (bool): if True, only print the command without executing it
         - tmp_cache (str): prefix for temporary cache directory. If empty, no temp cache is used
-        - cpu_tests (bool): if True, include CPU-only tests; if False, exclude non-device tests
+        - cpu_tests (bool): if True, include CPU-only small_tests; if False, exclude non-device small_tests
     """
     relative_path = subdir.relative_to(root_test_dir)
     report_name = f"{machine_type}_{suite}_{relative_path}_test_reports"
@@ -101,9 +101,9 @@ def handle_suite(
         - tmp_cache (str, optional): Prefix for temporary cache directories. If empty, no temp cache is used.
         - resume_at (str, optional): Resume execution starting from this subdirectory name.
             Useful for restarting interrupted test runs. Defaults to None (run from the beginning).
-        - only_in (list[str], optional): Only run tests in these specific subdirectories.
-            Can include special values like IMPORTANT_MODELS. Defaults to None (run all tests).
-        - cpu_tests (bool, optional): Whether to include CPU-only tests. Defaults to False.
+        - only_in (list[str], optional): Only run small_tests in these specific subdirectories.
+            Can include special values like IMPORTANT_MODELS. Defaults to None (run all small_tests).
+        - cpu_tests (bool, optional): Whether to include CPU-only small_tests. Defaults to False.
         - process_id (int, optional): Current process ID for parallel execution (1-indexed). Defaults to 1.
         - total_processes (int, optional): Total number of parallel processes. Defaults to 1.
     """
@@ -141,10 +141,10 @@ if __name__ == "__main__":
     Command-line Arguments:
         folder: Path to the root test directory (required)
         --suite: Test suite name to run (default: "models")
-        --cpu-tests: Include CPU-only tests in addition to device tests
-        --run-slow: Execute slow tests instead of skipping them
+        --cpu-small_tests: Include CPU-only small_tests in addition to device small_tests
+        --run-slow: Execute slow small_tests instead of skipping them
         --resume-at: Resume execution from a specific subdirectory
-        --only-in: Run tests only in specified subdirectories (supports IMPORTANT_MODELS)
+        --only-in: Run small_tests only in specified subdirectories (supports IMPORTANT_MODELS)
         --processes: Process distribution as "process_id total_processes"
         --dry-run: Print commands without executing them
         --tmp-cache: Use temporary cache directories for isolated runs
@@ -163,40 +163,40 @@ if __name__ == "__main__":
 
     Usage Examples:
         # Basic model testing
-        python3 -m utils.get_test_reports tests/ --suite models
+        python3 -m utils.get_test_reports small_tests/ --suite models
 
-        # Run slow tests for important models only
-        python3 -m utils.get_test_reports tests/ --suite models --run-slow --only-in IMPORTANT_MODELS
+        # Run slow small_tests for important models only
+        python3 -m utils.get_test_reports small_tests/ --suite models --run-slow --only-in IMPORTANT_MODELS
 
         # Parallel execution across 4 processes, second process to launch (processes are 0-indexed)
-        python3 -m utils.get_test_reports tests/ --suite models --processes 1 4
+        python3 -m utils.get_test_reports small_tests/ --suite models --processes 1 4
 
         # Resume interrupted run from 'bert' subdirectory with a tmp cache
-        python3 -m utils.get_test_reports tests/ --suite models --resume-at bert --tmp-cache /tmp/
+        python3 -m utils.get_test_reports small_tests/ --suite models --resume-at bert --tmp-cache /tmp/
 
-        # Run specific models with CPU tests
-        python3 -m utils.get_test_reports tests/ --suite models --only-in bert gpt2 --cpu-tests
+        # Run specific models with CPU small_tests
+        python3 -m utils.get_test_reports small_tests/ --suite models --only-in bert gpt2 --cpu-small_tests
 
-        # Run slow tests for only important models with a tmp cache
-        python3 -m utils.get_test_reports tests/ --suite models --run-slow --only-in IMPORTANT_MODELS --tmp-cache /tmp/
+        # Run slow small_tests for only important models with a tmp cache
+        python3 -m utils.get_test_reports small_tests/ --suite models --run-slow --only-in IMPORTANT_MODELS --tmp-cache /tmp/
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("folder", help="Path to test root folder (e.g., ./tests)")
+    parser.add_argument("folder", help="Path to test root folder (e.g., ./small_tests)")
 
-    # Choose which tests to run (broad picture)
+    # Choose which small_tests to run (broad picture)
     parser.add_argument("--suite", type=str, default="models", help="Test suit to run")
-    parser.add_argument("--cpu-tests", action="store_true", help="Also runs non-device tests")
-    parser.add_argument("--run-slow", action="store_true", help="Run slow tests instead of skipping them")
-    parser.add_argument("--collect-outputs", action="store_true", help="Collect outputs of the tests")
+    parser.add_argument("--cpu-small_tests", action="store_true", help="Also runs non-device small_tests")
+    parser.add_argument("--run-slow", action="store_true", help="Run slow small_tests instead of skipping them")
+    parser.add_argument("--collect-outputs", action="store_true", help="Collect outputs of the small_tests")
 
-    # Fine-grain control over the tests to run
+    # Fine-grain control over the small_tests to run
     parser.add_argument("--resume-at", type=str, default=None, help="Resume at a specific subdir / file in the suite")
     parser.add_argument(
         "--only-in",
         type=str,
         nargs="+",
-        help="Only run tests in the given subdirs / file. Use IMPORTANT_MODELS to run only the important models tests.",
+        help="Only run small_tests in the given subdirs / file. Use IMPORTANT_MODELS to run only the important models small_tests.",
     )
 
     # How to run the test suite: is the work divided among processes, do a try run, use temp cache?
@@ -219,9 +219,9 @@ if __name__ == "__main__":
     # Handle run slow
     if args.run_slow:
         os.environ["RUN_SLOW"] = "yes"
-        print("[WARNING] Running slow tests.")
+        print("[WARNING] Running slow small_tests.")
     else:
-        print("[WARNING] Skipping slow tests.")
+        print("[WARNING] Skipping slow small_tests.")
 
     # Handle multiple CI processes
     if args.processes is None:

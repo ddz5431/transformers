@@ -113,7 +113,7 @@ class TrainerCallbackTest(unittest.TestCase):
 
     def get_trainer(self, a=0, b=0, train_len=64, eval_len=64, callbacks=None, disable_tqdm=False, **kwargs):
         # disable_tqdm in TrainingArguments has a flaky default since it depends on the level of logging. We make sure
-        # its set to False since the tests later on depend on its value.
+        # its set to False since the small_tests later on depend on its value.
         train_dataset = RegressionDataset(length=train_len)
         eval_dataset = RegressionDataset(length=eval_len)
         config = RegressionModelConfig(a=a, b=b)

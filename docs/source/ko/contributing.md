@@ -154,7 +154,7 @@ python src/transformers/commands/transformers_cli.py env
    코드를 작업하는 동안 테스트 스위트(test suite)가 통과하는지 확인하세요. 다음과 같이 변경 사항에 영향을 받는 테스트를 실행하세요:
 
    ```bash
-   pytest tests/<TEST_TO_RUN>.py
+   pytest small_tests/<TEST_TO_RUN>.py
    ```
 
    테스트에 대한 더 많은 정보는 [테스트](https://huggingface.co/docs/transformers/testing) 가이드를 확인하세요.
@@ -253,7 +253,7 @@ Pull Request에서 실행되는 검사에 대한 자세한 정보는 [Pull Reque
 속도가 빠른 `pytest`와 `pytest-xdist`를 선호합니다. 저장소의 루트 디렉터리에서 테스트를 실행할 *하위 폴더 경로 또는 테스트 파일 경로*를 지정하세요:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 ```
 
 마찬가지로 `examples` 디렉터리에서도 *하위 폴더 경로 또는 테스트 파일 경로*를 지정하세요. 예를 들어, 다음 명령은 PyTorch `examples` 디렉터리의 텍스트 분류 하위 폴더를 테스트합니다:
@@ -276,7 +276,7 @@ python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classific
 </Tip>
 
 ```bash
-RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./tests/models/my_new_model
+RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./small_tests/models/my_new_model
 RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/text-classification
 ```
 
@@ -290,7 +290,7 @@ RUN_SLOW=yes python -m pytest -n auto --dist=loadfile -s -v ./examples/pytorch/t
 이것은 `unittest`가 완전히 지원된다는 것을 의미합니다. 다음은 `unittest`로 테스트를 실행하는 방법입니다:
 
 ```bash
-python -m unittest discover -s tests -t . -v
+python -m unittest discover -s small_tests -t . -v
 python -m unittest discover -s examples -t examples -v
 ```
 

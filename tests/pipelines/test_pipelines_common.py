@@ -777,7 +777,7 @@ class CustomPipelineTest(unittest.TestCase):
 
         alias = "text-classification"
         # Get the original task, so we can restore it at the end.
-        # (otherwise the subsequential tests in `TextClassificationPipelineTests` will fail)
+        # (otherwise the subsequential small_tests in `TextClassificationPipelineTests` will fail)
         _, original_task, _ = PIPELINE_REGISTRY.check_task(alias)
 
         try:
@@ -808,7 +808,7 @@ class CustomPipelineTest(unittest.TestCase):
             task_def["default"], {"model": {"pt": ("hf-internal-testing/tiny-random-distilbert", "2ef615d")}}
         )
 
-        # Clean registry for next tests.
+        # Clean registry for next small_tests.
         del PIPELINE_REGISTRY.supported_tasks["custom-text-classification"]
 
     @require_torch_or_tf

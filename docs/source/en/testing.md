@@ -45,7 +45,7 @@ There are 2 test suites in the repository:
      `tests` and `examples`:
 
 ```bash
-RUN_SLOW=1 pytest tests/
+RUN_SLOW=1 pytest small_tests/
 RUN_SLOW=1 pytest examples/
 ```
 
@@ -79,7 +79,7 @@ make test
 Note that the latter is defined as:
 
 ```bash
-python -m pytest -n auto --dist=loadfile -s -v ./tests/
+python -m pytest -n auto --dist=loadfile -s -v ./small_tests/
 ```
 
 which tells pytest to:
@@ -102,7 +102,7 @@ pytest --collect-only -q
 All tests of a given test file:
 
 ```bash
-pytest tests/test_optimization.py --collect-only -q
+pytest small_tests/test_optimization.py --collect-only -q
 ```
 
 ### Run a specific test module
@@ -110,7 +110,7 @@ pytest tests/test_optimization.py --collect-only -q
 To run an individual test module:
 
 ```bash
-pytest tests/utils/test_logging.py
+pytest small_tests/utils/test_logging.py
 ```
 
 ### Run specific tests
@@ -119,7 +119,7 @@ Since unittest is used inside most of the tests, to run specific subtests you ne
 class containing those tests. For example, it could be:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest::test_adam_w
+pytest small_tests/test_optimization.py::OptimizationTest::test_adam_w
 ```
 
 Here:
@@ -131,7 +131,7 @@ Here:
 If the file contains multiple classes, you can choose to run only tests of a given class. For example:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest
+pytest small_tests/test_optimization.py::OptimizationTest
 ```
 
 will run all the tests inside that class.
@@ -139,7 +139,7 @@ will run all the tests inside that class.
 As mentioned earlier you can see what tests are contained inside the `OptimizationTest` class by running:
 
 ```bash
-pytest tests/test_optimization.py::OptimizationTest --collect-only -q
+pytest small_tests/test_optimization.py::OptimizationTest --collect-only -q
 ```
 
 You can run tests by keyword expressions.
@@ -147,7 +147,7 @@ You can run tests by keyword expressions.
 To run only tests whose name contains `adam`:
 
 ```bash
-pytest -k adam tests/test_optimization.py
+pytest -k adam small_tests/test_optimization.py
 ```
 
 Logical `and` and `or` can be used to indicate whether all keywords should match or either. `not` can be used to
@@ -156,19 +156,19 @@ negate.
 To run all tests except those whose name contains `adam`:
 
 ```bash
-pytest -k "not adam" tests/test_optimization.py
+pytest -k "not adam" small_tests/test_optimization.py
 ```
 
 And you can combine the two patterns in one:
 
 ```bash
-pytest -k "ada and not adam" tests/test_optimization.py
+pytest -k "ada and not adam" small_tests/test_optimization.py
 ```
 
 For example to run both `test_adafactor` and `test_adam_w` you can use:
 
 ```bash
-pytest -k "test_adafactor or test_adam_w" tests/test_optimization.py
+pytest -k "test_adafactor or test_adam_w" small_tests/test_optimization.py
 ```
 
 Note that we use `or` here, since we want either of the keywords to match to include both.
@@ -176,7 +176,7 @@ Note that we use `or` here, since we want either of the keywords to match to inc
 If you want to include only tests that include both patterns, `and` is to be used:
 
 ```bash
-pytest -k "test and ada" tests/test_optimization.py
+pytest -k "test and ada" small_tests/test_optimization.py
 ```
 
 ### Run `accelerate` tests
@@ -184,7 +184,7 @@ pytest -k "test and ada" tests/test_optimization.py
 Sometimes you need to run `accelerate` tests on your models. For that you can just add `-m accelerate_tests` to your command, if let's say you want to run these tests on `OPT` run:
 
 ```bash
-RUN_SLOW=1 pytest -m accelerate_tests tests/models/opt/test_modeling_opt.py
+RUN_SLOW=1 pytest -m accelerate_tests small_tests/models/opt/test_modeling_opt.py
 ```
 
 
@@ -278,7 +278,7 @@ If you want to run all test modules, except a few you can exclude them by giving
 example, to run all except `test_modeling_*.py` tests:
 
 ```bash
-pytest *ls -1 tests/*py | grep -v test_modeling*
+pytest *ls -1 small_tests/*py | grep -v test_modeling*
 ```
 
 ### Clearing state
@@ -286,7 +286,7 @@ pytest *ls -1 tests/*py | grep -v test_modeling*
 CI builds and when isolation is important (against speed), cache should be cleared:
 
 ```bash
-pytest --cache-clear tests
+pytest --cache-clear small_tests
 ```
 
 ### Running tests in parallel
@@ -319,7 +319,7 @@ pip install pytest-flakefinder
 And then run every test multiple times (50 by default):
 
 ```bash
-pytest --flake-finder --flake-runs=5 tests/test_failing_test.py
+pytest --flake-finder --flake-runs=5 small_tests/test_failing_test.py
 ```
 
 <Tip>
@@ -347,7 +347,7 @@ As explained earlier this allows detection of coupled tests - where one test's s
 `pytest-random-order` is installed it will print the random seed it used for that session, e.g:
 
 ```bash
-pytest tests
+pytest small_tests
 [...]
 Using --random-order-bucket=module
 Using --random-order-seed=573663
@@ -367,7 +367,7 @@ manually narrowing down the list you can no longer rely on the seed, but have to
 they failed and tell pytest to not randomize them instead using `--random-order-bucket=none`, e.g.:
 
 ```bash
-pytest --random-order-bucket=none tests/test_a.py tests/test_c.py tests/test_b.py
+pytest --random-order-bucket=none small_tests/test_a.py small_tests/test_c.py small_tests/test_b.py
 ```
 
 To disable the shuffling for all tests:
@@ -410,7 +410,7 @@ or uninstall it.
 For a single or a group of tests via `pytest` (after `pip install pytest-pspec`):
 
 ```bash
-pytest --pspec tests/test_optimization.py
+pytest --pspec small_tests/test_optimization.py
 ```
 
 #### Instantly shows failed tests
@@ -431,14 +431,14 @@ pytest --instafail
 On a GPU-enabled setup, to test in CPU-only mode add `CUDA_VISIBLE_DEVICES=""` for CUDA GPUs:
 
 ```bash
-CUDA_VISIBLE_DEVICES="" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="" pytest small_tests/utils/test_logging.py
 ```
 
 or if you have multiple gpus, you can specify which one is to be used by `pytest`. For example, to use only the
 second gpu if you have gpus `0` and `1`, you can run:
 
 ```bash
-CUDA_VISIBLE_DEVICES="1" pytest tests/utils/test_logging.py
+CUDA_VISIBLE_DEVICES="1" pytest small_tests/utils/test_logging.py
 ```
 
 For Intel GPUs, use `ZE_AFFINITY_MASK` instead of `CUDA_VISIBLE_DEVICES` in the above example.
@@ -517,7 +517,7 @@ n_gpu = get_gpu_count()  # works with torch and tf
 To run the test suite on a specific torch device add `TRANSFORMERS_TEST_DEVICE="$device"` where `$device` is the target backend. For example, to test on CPU only:
 
 ```bash
-TRANSFORMERS_TEST_DEVICE="cpu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_DEVICE="cpu" pytest small_tests/utils/test_logging.py
 ```
 
 This variable is useful for testing custom or less common PyTorch backends such as `mps`, `xpu` or `npu`. It can also be used to achieve the same effect as `CUDA_VISIBLE_DEVICES` by targeting specific GPUs or testing in CPU-only mode.
@@ -525,7 +525,7 @@ This variable is useful for testing custom or less common PyTorch backends such 
 Certain devices will require an additional import after importing `torch` for the first time. This can be specified using the environment variable `TRANSFORMERS_TEST_BACKEND`:
 
 ```bash
-TRANSFORMERS_TEST_BACKEND="torch_npu" pytest tests/utils/test_logging.py
+TRANSFORMERS_TEST_BACKEND="torch_npu" pytest small_tests/utils/test_logging.py
 ```
 Alternative backends may also require the replacement of device-specific functions. For example `torch.cuda.manual_seed` may need to be replaced with a device-specific seed setter like `torch.npu.manual_seed` or `torch.xpu.manual_seed` to correctly set a random seed on the device. To specify a new backend with backend-specific device functions when running the test suite, create a Python device specification file `spec.py` in the format:
 
@@ -563,7 +563,7 @@ To jump right into the execution point, search for the `execute_subprocess_async
 You will need at least 2 GPUs to see these tests in action:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv tests/test_trainer_distributed.py
+CUDA_VISIBLE_DEVICES=0,1 RUN_SLOW=1 pytest -sv small_tests/test_trainer_distributed.py
 ```
 
 ### Output capture
@@ -574,13 +574,13 @@ according captured output will usually be shown along with the failure traceback
 To disable output capturing and to get the `stdout` and `stderr` normally, use `-s` or `--capture=no`:
 
 ```bash
-pytest -s tests/utils/test_logging.py
+pytest -s small_tests/utils/test_logging.py
 ```
 
 To send test results to JUnit format output:
 
 ```bash
-pytest tests --junitxml=result.xml
+pytest small_tests --junitxml=result.xml
 ```
 
 ### Color control
@@ -588,7 +588,7 @@ pytest tests --junitxml=result.xml
 To have no color (e.g., yellow on white background is not readable):
 
 ```bash
-pytest --color=no tests/utils/test_logging.py
+pytest --color=no small_tests/utils/test_logging.py
 ```
 
 ### Sending test report to online pastebin service
@@ -596,7 +596,7 @@ pytest --color=no tests/utils/test_logging.py
 Creating a URL for each test failure:
 
 ```bash
-pytest --pastebin=failed tests/utils/test_logging.py
+pytest --pastebin=failed small_tests/utils/test_logging.py
 ```
 
 This will submit test run information to a remote Paste service and provide a URL for each failure. You may select
@@ -605,7 +605,7 @@ tests as usual or add for example -x if you only want to send one particular fai
 Creating a URL for a whole test session log:
 
 ```bash
-pytest --pastebin=all tests/utils/test_logging.py
+pytest --pastebin=all small_tests/utils/test_logging.py
 ```
 
 ## Writing tests
@@ -647,13 +647,13 @@ corresponding arguments in the parameter list.
 and you could run just the `negative` and `integer` sets of params with:
 
 ```bash
-pytest -k "negative and integer" tests/test_mytest.py
+pytest -k "negative and integer" small_tests/test_mytest.py
 ```
 
 or all but `negative` sub-tests, with:
 
 ```bash
-pytest -k "not negative" tests/test_mytest.py
+pytest -k "not negative" small_tests/test_mytest.py
 ```
 
 Besides using the `-k` filter that was just mentioned, you can find out the exact name of each sub-test and run any
@@ -915,7 +915,7 @@ or the whole module:
 import pytest
 
 if not pytest.config.getoption("--custom-flag"):
-    pytest.skip("--custom-flag is missing, skipping tests", allow_module_level=True)
+    pytest.skip("--custom-flag is missing, skipping small_tests", allow_module_level=True)
 ```
 
 or the `xfail` way:
@@ -970,7 +970,7 @@ def test_integration_foo():
 Once a test is marked as `@slow`, to run such tests set `RUN_SLOW=1` env var, e.g.:
 
 ```bash
-RUN_SLOW=1 pytest tests
+RUN_SLOW=1 pytest small_tests
 ```
 
 Some decorators like `@parameterized` rewrite test names, therefore `@slow` and the rest of the skip decorators
@@ -1010,7 +1010,7 @@ have the very minimal number of layers (e.g., 2), vocab size (e.g., 1000), etc. 
 slow models to do qualitative testing. To see the use of these simply look for *tiny* models with:
 
 ```bash
-grep tiny tests examples
+grep tiny small_tests examples
 ```
 
 Here is an example of a [script](https://github.com/huggingface/transformers/tree/main/scripts/fsmt/fsmt-make-tiny-model.py) that created the tiny model
@@ -1238,7 +1238,7 @@ tf.random.set_seed(seed)
 To start a debugger at the point of the warning, do this:
 
 ```bash
-pytest tests/utils/test_logging.py -W error::UserWarning --pdb
+pytest small_tests/utils/test_logging.py -W error::UserWarning --pdb
 ```
 
 ## Working with github actions workflows
@@ -1323,11 +1323,11 @@ For a PR that involves the DeepSpeed integration, keep in mind our CircleCI PR C
 To run DeepSpeed tests:
 
 ```bash
-RUN_SLOW=1 pytest tests/deepspeed/test_deepspeed.py
+RUN_SLOW=1 pytest small_tests/deepspeed/test_deepspeed.py
 ```
 
 Any changes to the modeling or PyTorch examples code requires running the model zoo tests as well.
 
 ```bash
-RUN_SLOW=1 pytest tests/deepspeed
+RUN_SLOW=1 pytest small_tests/deepspeed
 ```

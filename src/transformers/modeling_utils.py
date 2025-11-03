@@ -2465,7 +2465,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             )
             # Setting a dynamic variable instead of `_tied_weights_keys` because it's a class
             # attributed not an instance member, therefore modifying it will modify the entire class
-            # Leading to issues on subsequent calls by different tests or subsequent calls.
+            # Leading to issues on subsequent calls by different small_tests or subsequent calls.
             self._dynamic_tied_weights_keys = tied_weights
 
         for module in self.modules():
@@ -3613,7 +3613,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
     def get_memory_footprint(self, return_buffers=True):
         r"""
         Get the memory footprint of a model. This will return the memory footprint of the current model in bytes.
-        Useful to benchmark the memory footprint of the current model and design some tests. Solution inspired from the
+        Useful to benchmark the memory footprint of the current model and design some small_tests. Solution inspired from the
         PyTorch discussions: https://discuss.pytorch.org/t/gpu-memory-that-model-uses/56822/2
 
         Arguments:

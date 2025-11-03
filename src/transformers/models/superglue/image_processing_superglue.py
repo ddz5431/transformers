@@ -34,6 +34,7 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
+from ...processing_utils import ImagesKwargs
 from ...utils import TensorType, logging, requires_backends
 from ...utils.import_utils import requires
 
@@ -130,6 +131,15 @@ def validate_and_format_image_pairs(images: ImageInput):
         ):
             return [image for image_pair in images for image in image_pair]
     raise ValueError(error_message)
+
+
+class SuperGlueImageProcessorKwargs(ImagesKwargs, total=False):
+    r"""
+    do_grayscale (`bool`, *optional*, defaults to `True`):
+        Whether to convert the image to grayscale. Can be overridden by `do_grayscale` in the `preprocess` method.
+    """
+
+    do_grayscale: bool
 
 
 @requires(backends=("torch",))

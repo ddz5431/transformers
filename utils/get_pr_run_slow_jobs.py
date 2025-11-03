@@ -21,9 +21,9 @@ def get_jobs_to_run():
     re_1 = re.compile(r"src/transformers/(models/.*)/modeling_.*\.py")
     re_2 = re.compile(r"src/transformers/(quantizers/quantizer_.*)\.py")
 
-    # tests for models or quantizers
-    re_3 = re.compile(r"tests/(models/.*)/test_.*\.py")
-    re_4 = re.compile(r"tests/(quantization/.*)/test_.*\.py")
+    # small_tests for models or quantizers
+    re_3 = re.compile(r"small_tests/(models/.*)/test_.*\.py")
+    re_4 = re.compile(r"small_tests/(quantization/.*)/test_.*\.py")
 
     # files in a model directory but not necessary a modeling file
     re_5 = re.compile(r"src/transformers/(models/.*)/.*\.py")
@@ -86,7 +86,7 @@ def check_name(model_name: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--message", type=str, default="", help="The content of a comment.")
-    parser.add_argument("--quantization", action="store_true", help="If we collect quantization tests")
+    parser.add_argument("--quantization", action="store_true", help="If we collect quantization small_tests")
     args = parser.parse_args()
 
     # The files are prepared by the caller (using GitHub api).
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     for filename in ["tests_dir.txt", "tests_models_dir.txt", "tests_quantization_dir.txt"]:
         with open(filename) as fp:
             data = json.load(fp)
-            data = [item["path"][len("tests/") :] for item in data if item["type"] == "dir"]
+            data = [item["path"][len("small_tests/") :] for item in data if item["type"] == "dir"]
             repo_content.extend(data)
 
     # These don't have the prefix `models/` or `quantization/`, so we need to add them.
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         print(sorted(set(jobs_to_run)))
 
     else:
-        # Compute (from the added/modified files) the directories under `tests/`, `tests/models/` and `tests/quantization`to run tests.
+        # Compute (from the added/modified files) the directories under `small_tests/`, `small_tests/models/` and `small_tests/quantization`to run small_tests.
         # These are already with the prefix `models/` or `quantization/`, so we don't need to add them.
         jobs_to_run = get_jobs_to_run()
         jobs_to_run = [x.replace("models/", "").replace("quantization/", "") for x in jobs_to_run]

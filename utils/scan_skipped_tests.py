@@ -23,11 +23,11 @@ from pathlib import Path
 REPO_ROOT = Path().cwd()
 
 COMMON_TEST_FILES: list[tuple[Path, str]] = [
-    (REPO_ROOT / "tests/test_modeling_common.py", "common"),
-    (REPO_ROOT / "tests/generation/test_utils.py", "GenerationMixin"),
+    (REPO_ROOT / "small_tests/test_modeling_common.py", "common"),
+    (REPO_ROOT / "small_tests/generation/test_utils.py", "GenerationMixin"),
 ]
 
-MODELS_DIR = REPO_ROOT / "tests/models"
+MODELS_DIR = REPO_ROOT / "small_tests/models"
 
 
 def get_common_tests(file_paths_with_origin: list[tuple[Path, str]]) -> dict[str, str]:
@@ -135,7 +135,7 @@ def summarize_all_tests(
     total_models = len(model_names)
     test_names = list(tests_with_origin)
 
-    print(f"📝 Aggregating {len(test_names)} tests...")
+    print(f"📝 Aggregating {len(test_names)} small_tests...")
     for index, test_fn in enumerate(test_names, 1):
         print(f"  ({index}/{len(test_names)}) {test_fn}", end="\r")
         models_ran, models_skipped, reasons_for_skipping = [], [], []
@@ -161,7 +161,7 @@ def summarize_all_tests(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Scan model tests for overridden or skipped common or generate tests.",
+        description="Scan model small_tests for overridden or skipped common or generate small_tests.",
     )
     parser.add_argument(
         "--output_dir",

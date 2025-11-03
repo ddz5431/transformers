@@ -487,7 +487,7 @@ While the model works, you still need to add tests to ensure it is compatible wi
 [Cookiecutter](https://cookiecutter.readthedocs.io/en/stable/) should have added a test file for your model. Run the test file below to make sure all common tests pass.
 
 ```bash
-pytest tests/models/brand_new_llama/test_modeling_brand_new_llama.py
+pytest small_tests/models/brand_new_llama/test_modeling_brand_new_llama.py
 ```
 
 The integration tests should be added first because they serve the same purpose as the debugging scripts you used earlier to implement the new model in Transformers. A template of those model tests, `BrandNewLlamaModelIntegrationTests`, was added by Cookiecutter and should be filled out. To ensure it passes, run the following command.
@@ -496,14 +496,14 @@ The integration tests should be added first because they serve the same purpose 
 <hfoption id="macOS">
 
 ```bash
-RUN_SLOW=1 pytest -sv tests/models/brand_new_llama/test_modeling_brand_new_llama.py::BrandNewLlamaModelIntegrationTests
+RUN_SLOW=1 pytest -sv small_tests/models/brand_new_llama/test_modeling_brand_new_llama.py::BrandNewLlamaModelIntegrationTests
 ```
 
 </hfoption>
 <hfoption id="Windows">
 
 ```bash
-SET RUN_SLOW=1 pytest -sv tests/models/brand_new_llama/test_modeling_brand_new_llama.py::BrandNewLlamaModelIntegrationTests
+SET RUN_SLOW=1 pytest -sv small_tests/models/brand_new_llama/test_modeling_brand_new_llama.py::BrandNewLlamaModelIntegrationTests
 ```
 
 </hfoption>

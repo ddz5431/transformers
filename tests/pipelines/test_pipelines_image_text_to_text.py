@@ -47,11 +47,11 @@ class ImageTextToTextPipelineTests(unittest.TestCase):
         image_token = getattr(processor.tokenizer, "image_token", "")
         examples = [
             {
-                "images": Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
+                "images": Image.open("./small_tests/fixtures/tests_samples/COCO/000000039769.png"),
                 "text": f"{image_token}This is a ",
             },
             {
-                "images": "./tests/fixtures/tests_samples/COCO/000000039769.png",
+                "images": "./small_tests/fixtures/tests_samples/COCO/000000039769.png",
                 "text": f"{image_token}Here I see a ",
             },
         ]
@@ -69,7 +69,7 @@ class ImageTextToTextPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_pt_token(self):
         pipe = pipeline("image-text-to-text", model="llava-hf/llava-interleave-qwen-0.5b-hf")
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         text = "<image> What this is? Assistant: This is"
 
         outputs = pipe(image, text=text)
@@ -101,7 +101,7 @@ class ImageTextToTextPipelineTests(unittest.TestCase):
     @require_torch
     def test_consistent_batching_behaviour(self):
         pipe = pipeline("image-text-to-text", model="microsoft/kosmos-2-patch14-224")
-        image = "./tests/fixtures/tests_samples/COCO/000000039769.png"
+        image = "./small_tests/fixtures/tests_samples/COCO/000000039769.png"
         prompt = "a photo of"
 
         outputs = pipe([image, image], text=[prompt, prompt])
@@ -271,7 +271,7 @@ class ImageTextToTextPipelineTests(unittest.TestCase):
     @slow
     @require_torch
     def test_model_pt_chat_template_image_url_base64(self):
-        with open("./tests/fixtures/tests_samples/COCO/000000039769.png", "rb") as image_file:
+        with open("./small_tests/fixtures/tests_samples/COCO/000000039769.png", "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode("utf-8")
 
         pipe = pipeline("image-text-to-text", model="llava-hf/llava-onevision-qwen2-0.5b-ov-hf")

@@ -690,6 +690,7 @@ class DepthProPreTrainedModel(PreTrainedModel):
     config_class = DepthProConfig
     base_model_prefix = "depth_pro"
     main_input_name = "pixel_values"
+    input_modalities = "image"
     supports_gradient_checkpointing = True
     _supports_sdpa = True
     _no_split_modules = ["DepthProPreActResidualLayer"]

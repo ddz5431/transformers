@@ -113,21 +113,21 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Fetch the tests to run
+      - name: Fetch the small_tests to run
         working-directory: /transformers
         # TODO: add `git-python` in the docker images
         run: |
           pip install --upgrade git-python
           python3 utils/tests_fetcher.py --diff_with_last_commit | tee test_preparation.txt
 
-      - name: Report fetched tests
+      - name: Report fetched small_tests
         uses: actions/upload-artifact@v4
         with:
           name: test_fetched
           path: /transformers/test_preparation.txt
 
       - id: set-matrix
-        name: Organize tests into models
+        name: Organize small_tests into models
         working-directory: /transformers
         # The `keys` is used as GitHub actions matrix for jobs, i.e. `models/bert`, `tokenization`, `pipeline`, etc.
         # The `test_map` is used to get the actual identified test files under each key.
@@ -146,7 +146,7 @@ jobs:
           echo "test_map=$test_map" >> $GITHUB_OUTPUT
 
   run_models_gpu:
-    name: Model tests
+    name: Model small_tests
     needs: setup_gpu
     # `dummy` means there is no test to run
     if: contains(fromJson(needs.setup_gpu.outputs.matrix), 'dummy') != true
@@ -229,7 +229,7 @@ jobs:
         working-directory: /transformers
         run: pip freeze
 
-      - name: Run all non-slow selected tests on GPU
+      - name: Run all non-slow selected small_tests on GPU
         working-directory: /transformers
         run: |
           python3 -m pytest -n 2 --dist=loadfile -v --make-reports=${{ matrix.machine_type }}_run_models_gpu_${{ matrix.folders }}_test_reports ${{ fromJson(needs.setup_gpu.outputs.test_map)[matrix.folders] }} -m "not not_device_test"

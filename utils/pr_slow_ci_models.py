@@ -150,7 +150,7 @@ def check_model_names(model_name: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--message", type=str, default="", help="The content of a comment.")
-    parser.add_argument("--quantization", action="store_true", help="If we collect quantization tests")
+    parser.add_argument("--quantization", action="store_true", help="If we collect quantization small_tests")
     args = parser.parse_args()
 
     new_model = get_new_model()
@@ -163,11 +163,11 @@ if __name__ == "__main__":
     final_list = []
     for model in models:
         if not args.quantization:
-            if os.path.isdir(f"tests/models/{model}"):
+            if os.path.isdir(f"small_tests/models/{model}"):
                 final_list.append(f"models/{model}")
-            elif os.path.isdir(f"tests/{model}") and model != "quantization":
+            elif os.path.isdir(f"small_tests/{model}") and model != "quantization":
                 final_list.append(model)
-        elif os.path.isdir(f"tests/quantization/{model}"):
+        elif os.path.isdir(f"small_tests/quantization/{model}"):
             final_list.append(f"quantization/{model}")
 
     print(sorted(set(final_list)))

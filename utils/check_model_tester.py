@@ -23,7 +23,7 @@ from get_test_info import get_tester_classes
 if __name__ == "__main__":
     failures = []
 
-    pattern = os.path.join("tests", "models", "**", "test_modeling_*.py")
+    pattern = os.path.join("small_tests", "models", "**", "test_modeling_*.py")
     test_files = glob.glob(pattern)
     # TODO: deal with TF/Flax too
     test_files = [
