@@ -1,8 +1,9 @@
 import hashlib
 import json
+import math
 import os
 from dataclasses import dataclass, asdict
-from typing import List, Optional
+from typing import List, Optional, Dict
 import logging
 
 import torch
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class LogitAnalyzerStep:
     """
     Complete step information with decoded strings.
-    Used after generation completes (via finalize()).
+    Built directly during generation (in add_decoding_step).
 
     GENERAL PURPOSE: Can evaluate any yes/no question during generation.
     Examples:
@@ -37,18 +38,23 @@ class LogitAnalyzerStep:
     binary_uncertainty: float  # 1 - |yes_norm - no_norm| (uncertainty between yes/no)
     eval_worthiness: float  # coverage * binary_uncertainty (worth evaluating/resampling?)
 
+    # EVALUATION DISTRIBUTION (yes/no response logits from suffix position)
+    eval_top_k_logits: List[float]
+    eval_top_k_probs: List[float]
+    eval_top_k_tokens: List[str]
+    eval_top_k_token_ids: List[int]
+    eval_entropy: float
 
-@dataclass
-class _CompactStep:
-    """
-    Compact step representation during generation.
-    No string decoding - stores token IDs only for efficiency.
-    """
-    step: int
-    yes_prob: float
-    no_prob: float
-    eval_token_id: int
-    last_token_id: Optional[int]
+    # GENERATION DISTRIBUTION (last generated token logits)
+    gen_top_k_logits: List[float]
+    gen_top_k_probs: List[float]
+    gen_top_k_tokens: List[str]
+    gen_top_k_token_ids: List[int]
+    gen_entropy: float
+
+    # Raw yes/no logits for all variants (for better interpretability)
+    yes_logits: Dict[str, float]  # {"Yes": -2.3, " Yes": -2.1, ...}
+    no_logits: Dict[str, float]   # {"No": -1.5, " No": -1.4, ...}
 
 
 GENRE_CONFIG = {
@@ -125,7 +131,8 @@ class LogitAnalyzer:
         no_tokens=None,
         strategy=None,
         device='cuda' if torch.cuda.is_available() else 'cpu',
-        confidence_threshold: float = 0.0,  # NEW: Threshold for flagging
+        confidence_threshold: float = 0.0,
+        top_k: int = 10,  # NEW: Number of top tokens to track
     ):
         """
         Initialize LogitAnalyzer.
@@ -138,6 +145,7 @@ class LogitAnalyzer:
             strategy: Optional evaluation strategy for filtering (experiment_runner integration)
             device: Device for token ID tensors ('cuda' or 'cpu')
             confidence_threshold: Threshold for is_flagged determination
+            top_k: Number of top logits/tokens to track (default: 10)
 
             Legacy parameters (for backward compatibility with older experiments):
             input_ids, eval_input_ids, full_input_ids, dataset, subtask, etc.
@@ -146,6 +154,7 @@ class LogitAnalyzer:
         self.strategy = strategy
         self.device = device
         self.confidence_threshold = confidence_threshold
+        self.top_k = top_k
 
         # Prepare yes/no tokens
         if yes_tokens is None:
@@ -167,7 +176,6 @@ class LogitAnalyzer:
         self.yes_token_ids = yes_ids
         self.no_token_ids = no_ids
 
-        self._compact_steps = []
         self.current_step = 0
 
         # Legacy mode: full initialization for backward compatibility
@@ -189,11 +197,8 @@ class LogitAnalyzer:
             self.full_prompts = [tokenizer.decode(ids) for ids in full_input_ids]
             self.suffix_prompts = [tokenizer.decode(ids) for ids in eval_input_ids]
 
-            # Legacy: all_steps will be populated by finalize()
+            # all_steps will be populated directly by add_decoding_step()
             self.all_steps = [[] for _ in range(self.batch_size)]
-
-            # Initialize compact steps for each batch
-            self._compact_steps = [[] for _ in range(self.batch_size)]
 
             # Pre-compute target signals for each genre
             self.target_signals = {
@@ -276,6 +281,7 @@ class LogitAnalyzer:
             yes_norm = yes_prob / coverage
             no_norm = no_prob / coverage
             binary_uncertainty = 1.0 - abs(yes_norm - no_norm)
+            # TODO simplify it by using softmax over yes/no logits
         else:
             # Model doesn't engage with yes/no at all
             binary_uncertainty = 1.0  # Maximally uncertain
@@ -307,12 +313,15 @@ class LogitAnalyzer:
         # Simple mode: default to "yes" as target
         return eval_token == "yes"
 
-    def add_decoding_step(self, eval_logits, full_input_ids, last_generated_token_ids):
+    def add_decoding_step(self, eval_logits, gen_logits, full_input_ids, last_generated_token_ids):
         """
         Add a decoding step and return real-time metrics for resampling decisions.
 
+        Builds complete LogitAnalyzerStep objects directly (no deferred decoding).
+
         Args:
-            eval_logits: Evaluation logits [batch_size, vocab_size]
+            eval_logits: Evaluation logits [batch_size, vocab_size] from SUFFIX position
+            gen_logits: Generation logits [batch_size, vocab_size] from GENERATION position
             full_input_ids: Current generated sequence including suffix
             last_generated_token_ids: Most recently generated token(s)
 
@@ -326,14 +335,13 @@ class LogitAnalyzer:
                 'binary_uncertainty': float,    # Uncertainty between yes/no
                 'eval_worthiness': float,       # Worth resampling? (high = uncertain)
             }
-            Use for real-time resampling during generation. Call finalize() after generation completes.
         """
         # Initialize batch_size for simple mode
         if self.batch_size is None:
             batch_size = eval_logits.shape[0]
             # Initialize data structures for simple mode
-            if not self._compact_steps:
-                self._compact_steps = [[] for _ in range(batch_size)]
+            if not self.all_steps:
+                self.all_steps = [[] for _ in range(batch_size)]
 
                 # Use genre config if available
                 if self.suffix_prompt_genre and self.suffix_prompt_genre in GENRE_CONFIG:
@@ -354,28 +362,136 @@ class LogitAnalyzer:
             if batch_idx >= eval_logits.shape[0]:
                 continue
 
+            # Strategy filtering
             if self.strategy is not None:
                 if hasattr(self.strategy, 'should_evaluate_step_number'):
                     if not self.strategy.should_evaluate_step_number(self.current_step):
                         self.current_step += 1
                         continue
 
+            # Move token ID tensors to correct device if needed
             if eval_logits.device != self.yes_token_ids_tensor.device:
                 self.yes_token_ids_tensor = self.yes_token_ids_tensor.to(eval_logits.device)
                 self.no_token_ids_tensor = self.no_token_ids_tensor.to(eval_logits.device)
 
-            probs = torch.nn.functional.softmax(eval_logits[batch_idx], dim=-1)
+            # ============================================================
+            # EVALUATION DISTRIBUTION (yes/no logits from suffix position)
+            # ============================================================
+            logits_eval = eval_logits[batch_idx]
+            probs_eval = torch.nn.functional.softmax(logits_eval, dim=-1)
 
-            yes_prob = probs[self.yes_token_ids_tensor].mean().item()
-            no_prob = probs[self.no_token_ids_tensor].mean().item()
+            # Yes/no probabilities (existing logic)
+            yes_prob = probs_eval[self.yes_token_ids_tensor].mean().item()
+            no_prob = probs_eval[self.no_token_ids_tensor].mean().item()
 
-            eval_token_id = eval_logits[batch_idx].argmax().item()
+            # Top-k for evaluation
+            eval_top_k_values, eval_top_k_indices = torch.topk(logits_eval, k=self.top_k)
+            eval_top_k_logits = eval_top_k_values.cpu().tolist()
+            eval_top_k_token_ids = eval_top_k_indices.cpu().tolist()
+            eval_top_k_probs = probs_eval[eval_top_k_indices].cpu().tolist()
+            eval_top_k_tokens = [self.tokenizer.decode([tid]) for tid in eval_top_k_token_ids]
 
-            # Compute real-time metrics for resampling decisions
+            # Entropy for evaluation
+            eval_entropy = -torch.sum(probs_eval * torch.log(probs_eval + 1e-10)).item()
+
+            # Yes/no raw logits (all variants)
+            yes_logits = {
+                self.tokenizer.decode([tid]): logits_eval[tid].item()
+                for tid in self.yes_token_ids
+            }
+            no_logits = {
+                self.tokenizer.decode([tid]): logits_eval[tid].item()
+                for tid in self.no_token_ids
+            }
+
+            # Eval token (argmax)
+            eval_token_id = logits_eval.argmax().item()
+            eval_token = self.tokenizer.decode([eval_token_id])
+
+            # ============================================================
+            # GENERATION DISTRIBUTION (last generated token logits)
+            # ============================================================
+            logits_gen = gen_logits[batch_idx]
+            probs_gen = torch.nn.functional.softmax(logits_gen, dim=-1)
+
+            # Top-k for generation
+            gen_top_k_values, gen_top_k_indices = torch.topk(logits_gen, k=self.top_k)
+            gen_top_k_logits = gen_top_k_values.cpu().tolist()
+            gen_top_k_token_ids = gen_top_k_indices.cpu().tolist()
+            gen_top_k_probs = probs_gen[gen_top_k_indices].cpu().tolist()
+            gen_top_k_tokens = [self.tokenizer.decode([tid]) for tid in gen_top_k_token_ids]
+
+            # Entropy for generation
+            gen_entropy = -torch.sum(probs_gen * torch.log(probs_gen + 1e-10)).item()
+
+            # ============================================================
+            # EXISTING METRICS
+            # ============================================================
             confidence_score = self._calculate_confidence_score(yes_prob, no_prob, batch_idx)
             coverage, binary_uncertainty, eval_worthiness = self._calculate_uncertainty_metrics(yes_prob, no_prob)
+            is_flagged = self.is_flagged_response(eval_token, batch_idx)
 
-            # Store metrics for return (for real-time resampling during generation)
+            # Extract last generated token
+            last_token_id = None
+            last_generated_token = ""
+            if last_generated_token_ids is not None:
+                # Extract token ID (handle various tensor/list formats)
+                if isinstance(last_generated_token_ids, torch.Tensor):
+                    if last_generated_token_ids.ndim == 0:
+                        last_token_id = last_generated_token_ids.item()
+                    elif last_generated_token_ids.ndim == 1:
+                        if batch_idx < len(last_generated_token_ids):
+                            last_token_id = last_generated_token_ids[batch_idx].item()
+                    else:
+                        last_token_id = last_generated_token_ids[batch_idx, 0].item()
+                elif isinstance(last_generated_token_ids, list):
+                    if batch_idx < len(last_generated_token_ids):
+                        last_token_id = last_generated_token_ids[batch_idx]
+
+                if last_token_id is not None:
+                    last_generated_token = self.tokenizer.decode([last_token_id])
+
+            # Build current content (incremental)
+            if self.all_steps[batch_idx]:
+                current_content = self.all_steps[batch_idx][-1].current_content + last_generated_token
+            else:
+                current_content = last_generated_token
+
+            # ============================================================
+            # BUILD COMPLETE LogitAnalyzerStep
+            # ============================================================
+            step = LogitAnalyzerStep(
+                step=self.current_step,
+                eval_token=eval_token,
+                yes_prob=yes_prob,
+                no_prob=no_prob,
+                confidence_score=confidence_score,
+                is_flagged=is_flagged,
+                current_content=current_content,
+                last_generated_token=last_generated_token,
+                coverage=coverage,
+                binary_uncertainty=binary_uncertainty,
+                eval_worthiness=eval_worthiness,
+                # Evaluation distribution
+                eval_top_k_logits=eval_top_k_logits,
+                eval_top_k_probs=eval_top_k_probs,
+                eval_top_k_tokens=eval_top_k_tokens,
+                eval_top_k_token_ids=eval_top_k_token_ids,
+                eval_entropy=eval_entropy,
+                # Generation distribution
+                gen_top_k_logits=gen_top_k_logits,
+                gen_top_k_probs=gen_top_k_probs,
+                gen_top_k_tokens=gen_top_k_tokens,
+                gen_top_k_token_ids=gen_top_k_token_ids,
+                gen_entropy=gen_entropy,
+                # Yes/no raw logits
+                yes_logits=yes_logits,
+                no_logits=no_logits,
+            )
+
+            self.all_steps[batch_idx].append(step)
+
+            # Real-time metrics for resampling
             real_time_metrics[batch_idx] = {
                 'yes_prob': yes_prob,
                 'no_prob': no_prob,
@@ -385,140 +501,42 @@ class LogitAnalyzer:
                 'eval_worthiness': eval_worthiness,
             }
 
-            # Extract last token ID
-            last_token_id = None
-            if last_generated_token_ids is not None:
-                if isinstance(last_generated_token_ids, torch.Tensor):
-                    if last_generated_token_ids.ndim == 0:
-                        # Scalar tensor
-                        last_token_id = last_generated_token_ids.item()
-                    elif last_generated_token_ids.ndim == 1:
-                        # 1D tensor - batch
-                        if batch_idx < len(last_generated_token_ids):
-                            last_token_id = last_generated_token_ids[batch_idx].item()
-                    else:
-                        # 2D tensor [batch, 1]
-                        last_token_id = last_generated_token_ids[batch_idx, 0].item()
-                elif isinstance(last_generated_token_ids, list):
-                    if batch_idx < len(last_generated_token_ids):
-                        last_token_id = last_generated_token_ids[batch_idx]
-
-            compact_step = _CompactStep(
-                step=self.current_step,
-                yes_prob=yes_prob,
-                no_prob=no_prob,
-                eval_token_id=eval_token_id,
-                last_token_id=last_token_id,
-            )
-
-            self._compact_steps[batch_idx].append(compact_step)
-            self.current_step += 1
-
+        self.current_step += 1
         return real_time_metrics
 
     def finalize(self, final_input_ids: Optional[torch.Tensor] = None, batch_idx: int = 0) -> List[LogitAnalyzerStep]:
         """
+        Return already-built LogitAnalyzerStep objects.
+
+        Optionally improves current_content accuracy by re-decoding from final_input_ids.
+
         Args:
-            final_input_ids: Final generated sequence (optional, for accurate context building).
-                            If provided, builds complete context including skipped evaluation steps.
-                            If None, builds context from evaluated tokens only (may have gaps).
+            final_input_ids: Final generated sequence (optional, for accurate context re-building)
             batch_idx: Which batch item to finalize (default 0)
 
         Returns:
-            List of enriched LogitAnalyzerStep objects with decoded strings
+            List of LogitAnalyzerStep objects (already complete from add_decoding_step)
         """
-        if not self._compact_steps or batch_idx >= len(self._compact_steps):
-            # No steps recorded or invalid batch_idx
+        if not self.all_steps or batch_idx >= len(self.all_steps):
             return []
 
-        enriched_steps = []
-        compact_steps = self._compact_steps[batch_idx]
+        steps = self.all_steps[batch_idx]
 
-        # Determine generation start offset for accurate context building
-        generation_start_offset = None
-        if final_input_ids is not None:
-            # Try to determine where generation starts
-            if self.input_ids is not None and batch_idx < len(self.input_ids):
-                # Legacy mode: we know the original prompt length
+        # OPTIONAL: Re-build current_content from final_input_ids for better accuracy
+        # (useful if incremental decoding had issues)
+        if final_input_ids is not None and self.input_ids is not None:
+            if batch_idx < len(self.input_ids):
                 generation_start_offset = len(self.input_ids[batch_idx])
-            elif self.full_input_ids is not None and batch_idx < len(self.full_input_ids):
-                # Use full_input_ids (includes suffix) as offset
-                generation_start_offset = len(self.full_input_ids[batch_idx])
 
-        # Build context for each step
-        all_last_token_ids = [step.last_token_id for step in compact_steps if step.last_token_id is not None]
+                for step in steps:
+                    end_pos = generation_start_offset + step.step + 1
+                    if end_pos <= len(final_input_ids):
+                        step.current_content = self.tokenizer.decode(
+                            final_input_ids[generation_start_offset:end_pos],
+                            skip_special_tokens=True
+                        )
 
-        if all_last_token_ids:
-            decoded_tokens_batch = [
-                self.tokenizer.decode([tid]) if tid is not None else ""
-                for tid in [step.last_token_id for step in compact_steps]
-            ]
-        else:
-            decoded_tokens_batch = ["" for _ in compact_steps]
-
-        # Incremental context (fallback method, may have gaps from skipped steps)
-        current_context = ""
-
-        for i, compact_step in enumerate(compact_steps):
-            # Build accurate context from final_input_ids if available
-            if final_input_ids is not None and generation_start_offset is not None:
-                # Decode from generation start up to this evaluation step
-                # Each step corresponds to one generated token
-                end_pos = generation_start_offset + compact_step.step + 1
-                if end_pos <= len(final_input_ids):
-                    current_content = self.tokenizer.decode(
-                        final_input_ids[generation_start_offset:end_pos],
-                        skip_special_tokens=True
-                    )
-                else:
-                    # Fallback to incremental if indexing would fail
-                    current_context += decoded_tokens_batch[i]
-                    current_content = current_context
-            else:
-                # Fallback: incremental context (may miss skipped steps)
-                current_context += decoded_tokens_batch[i]
-                current_content = current_context
-
-            eval_token = self.tokenizer.decode([compact_step.eval_token_id])
-
-            confidence_score = self._calculate_confidence_score(
-                compact_step.yes_prob,
-                compact_step.no_prob,
-                batch_idx
-            )
-
-            is_flagged = self.is_flagged_response(eval_token, batch_idx)
-
-            # Calculate uncertainty metrics for resampling
-            coverage, binary_uncertainty, eval_worthiness = self._calculate_uncertainty_metrics(
-                compact_step.yes_prob,
-                compact_step.no_prob
-            )
-
-            enriched_step = LogitAnalyzerStep(
-                step=compact_step.step,
-                eval_token=eval_token,
-                yes_prob=compact_step.yes_prob,
-                no_prob=compact_step.no_prob,
-                confidence_score=confidence_score,
-                is_flagged=is_flagged,
-                current_content=current_content,
-                last_generated_token=decoded_tokens_batch[i],
-                coverage=coverage,
-                binary_uncertainty=binary_uncertainty,
-                eval_worthiness=eval_worthiness,
-            )
-
-            enriched_steps.append(enriched_step)
-
-        if batch_idx < len(self.all_steps):
-            self.all_steps[batch_idx] = enriched_steps
-        else:
-            while len(self.all_steps) <= batch_idx:
-                self.all_steps.append([])
-            self.all_steps[batch_idx] = enriched_steps
-
-        return enriched_steps
+        return steps
 
     def get_flagged_steps(self, batch_idx):
         """
