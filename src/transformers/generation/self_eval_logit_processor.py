@@ -8,10 +8,7 @@ import logging
 import numpy as np
 import torch
 
-from tests.generation.test_utils import has_similar_generate_outputs
-
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class LogitAnalyzerStep:
@@ -126,7 +123,7 @@ def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float):
 
     # Eval worthiness: worth resampling when model engages AND is uncertain
     # High when: coverage is high (model thinks question is relevant)
-    #            AND binary_uncertainty is high (model can't decide)
+    #            AND binary_entropy is high (model can't decide)
     # TODO think about the worthiness calculation
     eval_worthiness = coverage * binary_entropy
 
@@ -156,7 +153,7 @@ class LogitAnalyzer:
       - Strategy-aware filtering (skip computation for filtered steps)
       - Compact storage during generation (no string decoding until finalize())
       - Real-time metrics for resampling decisions (add_decoding_step returns metrics)
-      - Uncertainty quantification (coverage, binary_uncertainty, eval_worthiness)
+      - Uncertainty quantification (coverage, binary_entropy, eval_worthiness)
 
     Usage:
         # Create analyzer
@@ -195,7 +192,7 @@ class LogitAnalyzer:
         strategy=None,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         confidence_threshold: float = 0.0,
-        top_k: int = 20,  # NEW: Number of top tokens to track
+        top_k: int = 20,
     ):
         """
         Initialize LogitAnalyzer.

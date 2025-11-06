@@ -3709,14 +3709,20 @@ class GenerationMixin:
         else:
             is_prefill = True
 
-        iteration = 0
+        generation_step = 0
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus, device=input_ids.device):
-            # prepare model inputs
-            if iteration == 0:
-                model_inputs = self.prepare_inputs_for_generation(input_ids_with_eval, **model_kwargs)
-            else:
+            # check if we need suffix for THIS step
+            should_evaluate = True
+            if logit_analyzer is not None and logit_analyzer.strategy is not None:
+                should_evaluate = logit_analyzer.strategy.should_evaluate_step_number(generation_step)
+
+            # conditionally prepare model inputs
+            if should_evaluate:
                 input_ids_with_eval = torch.cat([input_ids, suffix_eval_ids], dim=-1)
                 model_inputs = self.prepare_inputs_for_generation(input_ids_with_eval, **model_kwargs)
+            else:
+                # No suffix concatenation
+                model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             if is_prefill:
                 outputs = self(**model_inputs, return_dict=True)
@@ -3728,14 +3734,21 @@ class GenerationMixin:
             model_kwargs = self._update_model_kwargs_for_generation(
                 outputs,
                 model_kwargs,
-                suffix_len=suffix_eval_ids.shape[1],
+                suffix_len=suffix_eval_ids.shape[1] if should_evaluate else 0,
                 is_encoder_decoder=self.config.is_encoder_decoder,
             )
             if synced_gpus and this_peer_finished:
                 continue
 
-            next_token_logits = outputs.logits[:, 0, :].to(copy=True, dtype=torch.float32, device=input_ids.device)
-            eval_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32, device=input_ids.device)
+            # extract logits conditionally
+            if should_evaluate:
+                next_token_logits = outputs.logits[:, 0, :].to(copy=True, dtype=torch.float32,
+                                                               device=input_ids.device)
+                eval_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32, device=input_ids.device)
+            else:
+                next_token_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32,
+                                                                device=input_ids.device)
+                eval_logits = None
 
             # pre-process distribution
             next_token_scores = logits_processor(input_ids, next_token_logits)
@@ -3775,10 +3788,10 @@ class GenerationMixin:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
             # Track the evaluation step if logit_analyzer is provided
-            if logit_analyzer is not None:
+            if logit_analyzer is not None and should_evaluate:
                 # precompute eval distribution
                 eval_probs = nn.functional.softmax(eval_logits, dim=-1)
-                eval_top_k_values, eval_top_k_indices = torch.topk(eval_probs, k=logit_analyzer.top_k)
+                eval_top_k_values, eval_top_k_indices = torch.topk(eval_logits, k=logit_analyzer.top_k)
 
                 # precompute gen distribution
                 gen_top_k_values, gen_top_k_indices = torch.topk(next_token_scores, k=logit_analyzer.top_k)
@@ -3806,7 +3819,7 @@ class GenerationMixin:
             # This is needed to properly delete outputs.logits which may be very large for first iteration
             # Otherwise a reference to outputs is kept which keeps the logits alive in the next iteration
             del outputs
-            iteration += 1
+            generation_step += 1
 
         if streamer is not None:
             streamer.end()
