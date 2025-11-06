@@ -1,6 +1,5 @@
 import hashlib
 import json
-import math
 import os
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict
@@ -8,6 +7,8 @@ import logging
 
 import numpy as np
 import torch
+
+from tests.generation.test_utils import has_similar_generate_outputs
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +33,12 @@ class LogitAnalyzerStep:
     confidence_score: float  # Polarity-aware: (yes-no)/(yes+no) * polarity
     is_flagged: bool  # Whether eval_token matches target signal
     current_content: str
-    last_generated_token: str
+    current_generated_token: str
 
     # Uncertainty metrics for resampling decisions
     coverage: float  # yes_prob + no_prob (how much probability mass on yes/no)
-    binary_uncertainty: float  # 1 - |yes_norm - no_norm| (uncertainty between yes/no)
-    eval_worthiness: float  # coverage * binary_uncertainty (worth evaluating/resampling?)
+    binary_entropy: float  # nonlinear uncertainty
+    eval_worthiness: float  # coverage * binary_entropy (worth resampling?)
 
     # EVALUATION DISTRIBUTION (yes/no response logits from suffix position)
     eval_top_k_logits: List[float]
@@ -46,7 +47,7 @@ class LogitAnalyzerStep:
     eval_top_k_token_ids: List[int]
     eval_entropy: float
 
-    # GENERATION DISTRIBUTION (last generated token logits)
+    # GENERATION DISTRIBUTION (current generation logits)
     gen_top_k_logits: List[float]
     gen_top_k_probs: List[float]
     gen_top_k_tokens: List[str]
@@ -74,6 +75,67 @@ GENRE_CONFIG = {
     "specific_harm": {"target_signal": "yes", "signal_polarity": 1},
     "safe_control": {"target_signal": "no", "signal_polarity": -1},
 }
+
+
+def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float):
+    """
+    Calculate uncertainty metrics for resampling decisions.
+
+    Args:
+      yes_prob: Probability of "yes" token from full vocab softmax
+      no_prob: Probability of "no" token from full vocab softmax
+
+    Returns:
+        coverage: Probability mass on yes/no tokens (0 to 1)
+                High = model engages with binary question
+                Low = model wants to give a non-binary answer
+
+        binary_entropy: Binary entropy between yes and no (0 to 1)
+                         0 = certain choice, 1 = maximally uncertain (50/50)
+
+        confidence: Inverse of uncertainty (0 to 1)
+                 High = model is confident in its yes/no choice
+
+        eval_worthiness: Combined score for resampling decisions (0 to 1)
+                      High = worth resampling (model engages but is uncertain)
+                      Low = not worth resampling (doesn't engage or is certain)
+    """
+    # Coverage: how much probability mass is on yes/no
+    coverage = yes_prob + no_prob
+
+    # Binary uncertainty: how uncertain between yes and no
+    if coverage > 1e-8:
+        yes_norm = yes_prob / coverage
+        no_norm = no_prob / coverage
+
+        # Compute binary entropy (0 to 1)
+        entropy = 0.0
+        if yes_norm > 1e-8:
+            entropy -= yes_norm * np.log2(yes_norm)
+        if no_norm > 1e-8:
+            entropy -= no_norm * np.log2(no_norm)
+
+        binary_entropy = entropy
+    else:
+        # Model doesn't engage with yes/no at all
+        # Maximum uncertainty since we don't know what it wants to say
+        binary_entropy = 1.0
+
+    # Confidence: inverse of uncertainty
+    confidence = 1.0 - binary_entropy
+
+    # Eval worthiness: worth resampling when model engages AND is uncertain
+    # High when: coverage is high (model thinks question is relevant)
+    #            AND binary_uncertainty is high (model can't decide)
+    # TODO think about the worthiness calculation
+    eval_worthiness = coverage * binary_entropy
+
+    return {
+        'coverage': coverage,
+        'binary_entropy': binary_entropy,
+        'confidence': confidence,
+        'eval_worthiness': eval_worthiness
+    }
 
 
 class LogitAnalyzer:
@@ -133,7 +195,7 @@ class LogitAnalyzer:
         strategy=None,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         confidence_threshold: float = 0.0,
-        top_k: int = 10,  # NEW: Number of top tokens to track
+        top_k: int = 20,  # NEW: Number of top tokens to track
     ):
         """
         Initialize LogitAnalyzer.
@@ -146,7 +208,7 @@ class LogitAnalyzer:
             strategy: Optional evaluation strategy for filtering (experiment_runner integration)
             device: Device for token ID tensors ('cuda' or 'cpu')
             confidence_threshold: Threshold for is_flagged determination
-            top_k: Number of top logits/tokens to track (default: 10)
+            top_k: Number of top logits/tokens to track (default: 20)
 
             Legacy parameters (for backward compatibility with older experiments):
             input_ids, eval_input_ids, full_input_ids, dataset, subtask, etc.
@@ -245,7 +307,7 @@ class LogitAnalyzer:
 
     def _calculate_prediction_score(self, yes_prob: float, no_prob: float, batch_idx: int) -> float:
         """
-        Calculate directional prediction score from yes/no probabilities.
+        Calculate a directional prediction score from yes/no probabilities.
 
         Returns a score in [-1, +1] indicating prediction strength toward flagged
   state:
@@ -266,70 +328,11 @@ class LogitAnalyzer:
 
         return raw_score  # Default: yes = flagged
 
-    def _calculate_uncertainty_metrics(self, yes_prob: float, no_prob: float):
-        """
-        Calculate uncertainty metrics for resampling decisions.
-
-        Args:
-          yes_prob: Probability of "yes" token from full vocab softmax
-          no_prob: Probability of "no" token from full vocab softmax
-
-        Returns:
-            coverage: Probability mass on yes/no tokens (0 to 1)
-                    High = model engages with binary question
-                    Low = model wants to give non-binary answer
-
-            binary_uncertainty: Binary entropy between yes and no (0 to 1)
-                             0 = certain choice, 1 = maximally uncertain (50/50)
-
-            confidence: Inverse of uncertainty (0 to 1)
-                     High = model is confident in its yes/no choice
-
-            eval_worthiness: Combined score for resampling decisions (0 to 1)
-                          High = worth resampling (model engages but is uncertain)
-                          Low = not worth resampling (doesn't engage or is certain)
-        """
-        # Coverage: how much probability mass is on yes/no
-        coverage = yes_prob + no_prob
-
-        # Binary uncertainty: how uncertain between yes and no
-        if coverage > 1e-8:
-            yes_norm = yes_prob / coverage
-            no_norm = no_prob / coverage
-
-            # Compute binary entropy (0 to 1)
-            entropy = 0.0
-            if yes_norm > 1e-8:
-                entropy -= yes_norm * np.log2(yes_norm)
-            if no_norm > 1e-8:
-                entropy -= no_norm * np.log2(no_norm)
-
-            binary_uncertainty = entropy
-        else:
-            # Model doesn't engage with yes/no at all
-            # Maximum uncertainty since we don't know what it wants to say
-            binary_uncertainty = 1.0
-
-        # Confidence: inverse of uncertainty
-        confidence = 1.0 - binary_uncertainty
-
-        # Eval worthiness: worth resampling when model engages AND is uncertain
-        # High when: coverage is high (model thinks question is relevant)
-        #            AND binary_uncertainty is high (model can't decide)
-        eval_worthiness = coverage * binary_uncertainty
-
-        return {
-            'coverage': coverage,
-            'binary_uncertainty': binary_uncertainty,
-            'confidence': confidence,
-            'eval_worthiness': eval_worthiness
-        }
-
     def is_flagged_response(self, eval_token: str, batch_idx: int) -> bool:
         """
         Check if evaluation token matches target signal.
 
-        Returns True if token matches the target signal for the genre.
+        Returns True if the token matches the target signal for the genre.
         Examples:
           - "Is this unsafe?" with genre="positive_detection" → True if token is "yes"
           - "Is this helpful?" with genre="negative_detection" → True if token is "no"
@@ -338,48 +341,45 @@ class LogitAnalyzer:
         if eval_token not in {"yes", "no"}:
             return False
 
-        # Check target signal if available (legacy mode)
         if batch_idx in self.target_signals:
             return eval_token == self.target_signals[batch_idx]
 
-        # Simple mode: default to "yes" as target
         return eval_token == "yes"
 
-    def _compute_evaluation_distribution(self, logits_eval, batch_idx):
+    def _compute_evaluation_distribution(self, logits_eval, eval_probs=None, eval_top_k_values=None, eval_top_k_indices=None):
         """
-        Compute evaluation distribution metrics from suffix position logits.
+        Compute evaluation distribution metrics from evaluation position logits.
 
         Args:
             logits_eval: Evaluation logits [vocab_size] for a single batch item
-            batch_idx: Batch index for accessing tokenizer
 
         Returns:
             dict containing:
-                - yes_prob: Probability of yes tokens
-                - no_prob: Probability of no tokens
                 - eval_top_k_logits: Top-k logit values
                 - eval_top_k_probs: Top-k probabilities
                 - eval_top_k_tokens: Top-k decoded tokens
                 - eval_top_k_token_ids: Top-k token IDs
                 - eval_entropy: Entropy of distribution
-                - yes_logits: Dict of yes token variants and their logits
-                - no_logits: Dict of no token variants and their logits
-                - eval_token: Argmax token (decoded)
         """
-        probs_eval = torch.nn.functional.softmax(logits_eval, dim=-1)
+        if eval_probs is None:
+            probs_eval = torch.nn.functional.softmax(logits_eval, dim=-1)
+        else:
+            probs_eval = eval_probs
 
         # Yes/no probabilities
-        yes_prob = probs_eval[self.yes_token_ids_tensor].mean().item()
-        no_prob = probs_eval[self.no_token_ids_tensor].mean().item()
+        yes_prob = probs_eval[self.yes_token_ids_tensor].sum().item()
+        no_prob = probs_eval[self.no_token_ids_tensor].sum().item()
 
-        # Top-k for evaluation
-        eval_top_k_values, eval_top_k_indices = torch.topk(logits_eval, k=self.top_k)
+        # Use precomputed top-k if available
+        if eval_top_k_values is None or eval_top_k_indices is None:
+            eval_top_k_values, eval_top_k_indices = torch.topk(logits_eval, k=self.top_k)
+
         eval_top_k_logits = eval_top_k_values.cpu().tolist()
         eval_top_k_token_ids = eval_top_k_indices.cpu().tolist()
         eval_top_k_probs = probs_eval[eval_top_k_indices].cpu().tolist()
         eval_top_k_tokens = [self.tokenizer.decode([tid]) for tid in eval_top_k_token_ids]
 
-        # Entropy for evaluation
+        # Entropy
         eval_entropy = -torch.sum(probs_eval * torch.log(probs_eval + 1e-10)).item()
 
         # Yes/no raw logits (all variants)
@@ -409,7 +409,7 @@ class LogitAnalyzer:
             'eval_token': eval_token,
         }
 
-    def _compute_generation_distribution(self, logits_gen):
+    def _compute_generation_distribution(self, logits_gen, gen_probs=None, gen_top_k_values=None, gen_top_k_indices=None):
         """
         Compute generation distribution metrics from generation position logits.
 
@@ -424,16 +424,20 @@ class LogitAnalyzer:
                 - gen_top_k_token_ids: Top-k token IDs
                 - gen_entropy: Entropy of distribution
         """
-        probs_gen = torch.nn.functional.softmax(logits_gen, dim=-1)
+        if gen_probs is None:
+            probs_gen = torch.nn.functional.softmax(logits_gen, dim=-1)
+        else:
+            probs_gen = gen_probs
 
-        # Top-k for generation
-        gen_top_k_values, gen_top_k_indices = torch.topk(logits_gen, k=self.top_k)
+        if gen_top_k_values is None or gen_top_k_indices is None:
+            gen_top_k_values, gen_top_k_indices = torch.topk(logits_gen, k=self.top_k)
+
         gen_top_k_logits = gen_top_k_values.cpu().tolist()
         gen_top_k_token_ids = gen_top_k_indices.cpu().tolist()
         gen_top_k_probs = probs_gen[gen_top_k_indices].cpu().tolist()
         gen_top_k_tokens = [self.tokenizer.decode([tid]) for tid in gen_top_k_token_ids]
 
-        # Entropy for generation
+        # Entropy
         gen_entropy = -torch.sum(probs_gen * torch.log(probs_gen + 1e-10)).item()
 
         return {
@@ -444,57 +448,42 @@ class LogitAnalyzer:
             'gen_entropy': gen_entropy,
         }
 
-    def _extract_last_generated_token(self, last_generated_token_ids, batch_idx):
+    def _decode_next_token(self, next_tokens, batch_idx):
         """
-        Extract and decode the last generated token for a batch item.
+        Extract and decode the current generated token for a batch item.
 
         Args:
-            last_generated_token_ids: Token IDs (tensor or list) from generation
+            next_tokens: Token IDs (tensor or list) from generation
             batch_idx: Batch index
 
         Returns:
             str: Decoded token string (empty string if extraction fails)
         """
-        last_token_id = None
-
-        if last_generated_token_ids is None:
+        if next_tokens is None or batch_idx >= len(next_tokens):
             return ""
 
-        if isinstance(last_generated_token_ids, torch.Tensor):
-            if last_generated_token_ids.ndim == 0:
-                last_token_id = last_generated_token_ids.item()
-            elif last_generated_token_ids.ndim == 1:
-                if batch_idx < len(last_generated_token_ids):
-                    last_token_id = last_generated_token_ids[batch_idx].item()
-            else:
-                last_token_id = last_generated_token_ids[batch_idx, 0].item()
-        elif isinstance(last_generated_token_ids, list):
-            if batch_idx < len(last_generated_token_ids):
-                last_token_id = last_generated_token_ids[batch_idx]
+        token_id = next_tokens[batch_idx].item() if isinstance(next_tokens, torch.Tensor) else next_tokens[batch_idx]
+        return self.tokenizer.decode([token_id])
 
-        if last_token_id is not None:
-            return self.tokenizer.decode([last_token_id])
 
-        return ""
-
-    def _build_current_content(self, batch_idx, last_generated_token):
+    def _build_current_content(self, batch_idx, current_generated_token):
         """
         Build current content by appending to previous step's content.
 
         Args:
             batch_idx: Batch index
-            last_generated_token: Token to append
+            current_generated_token: Token to append
 
         Returns:
             str: Current accumulated content
         """
         if self.all_steps[batch_idx]:
-            return self.all_steps[batch_idx][-1].current_content + last_generated_token
+            return self.all_steps[batch_idx][-1].current_content + current_generated_token
         else:
-            return last_generated_token
+            return current_generated_token
 
     def _create_analyzer_step(self, eval_metrics, gen_metrics, prediction_metrics,
-                             current_content, last_generated_token):
+                             current_content, current_generated_token):
         """
         Create a LogitAnalyzerStep from computed metrics.
 
@@ -503,7 +492,7 @@ class LogitAnalyzer:
             gen_metrics: Dict from _compute_generation_distribution
             prediction_metrics: Dict containing prediction_score, uncertainty metrics, is_flagged
             current_content: Current accumulated content string
-            last_generated_token: Last generated token string
+            current_generated_token: Current generated token string
 
         Returns:
             LogitAnalyzerStep: Complete step object
@@ -516,9 +505,9 @@ class LogitAnalyzer:
             confidence_score=prediction_metrics['prediction_score'],
             is_flagged=prediction_metrics['is_flagged'],
             current_content=current_content,
-            last_generated_token=last_generated_token,
+            current_generated_token=current_generated_token,
             coverage=prediction_metrics['coverage'],
-            binary_uncertainty=prediction_metrics['binary_uncertainty'],
+            binary_entropy=prediction_metrics['binary_entropy'],
             eval_worthiness=prediction_metrics['eval_worthiness'],
             # Evaluation distribution
             eval_top_k_logits=eval_metrics['eval_top_k_logits'],
@@ -537,17 +526,19 @@ class LogitAnalyzer:
             no_logits=eval_metrics['no_logits'],
         )
 
-    def add_decoding_step(self, eval_logits, gen_logits, full_input_ids, last_generated_token_ids):
+    def add_decoding_step(self, eval_logits, gen_logits, next_tokens, eval_probs=None, eval_top_k_values=None, eval_top_k_indices=None, gen_probs=None, gen_top_k_values=None, gen_top_k_indices=None):
         """
         Add a decoding step and return real-time metrics for resampling decisions.
 
         Builds complete LogitAnalyzerStep objects directly (no deferred decoding).
 
         Args:
-            eval_logits: Evaluation logits [batch_size, vocab_size] from SUFFIX position
+            eval_logits: Evaluation logits [batch_size, vocab_size] from EVALUATION position
             gen_logits: Generation logits [batch_size, vocab_size] from GENERATION position
-            full_input_ids: Current generated sequence including suffix
-            last_generated_token_ids: Most recently generated token(s)
+            next_tokens: Actually generated tokens [batch_size]
+            gen_probs: Precomputed softmax probabilities [batch_size, vocab_size] (optional)
+            gen_top_k_values: Precomputed top-k logit values [batch_size, top_k] (optional)
+            gen_top_k_indices: Precomputed top-k indices [batch_size, top_k] (optional)
 
         Returns:
             Dict mapping batch_idx to real-time metrics:
@@ -556,7 +547,7 @@ class LogitAnalyzer:
                 'no_prob': float,               # Probability of no tokens
                 'confidence_score': float,      # Polarity-aware: >0 = bad answer
                 'coverage': float,              # yes_prob + no_prob (engagement)
-                'binary_uncertainty': float,    # Uncertainty between yes/no
+                'binary_entropy': float,        # Uncertainty between yes/no
                 'eval_worthiness': float,       # Worth resampling? (high = uncertain)
             }
         """
@@ -581,35 +572,43 @@ class LogitAnalyzer:
 
         real_time_metrics = {}
 
+        # Check strategy filtering ONCE per step (before batch loop)
+        if self.strategy is not None:
+            if hasattr(self.strategy, 'should_evaluate_step_number'):
+                if not self.strategy.should_evaluate_step_number(self.current_step):
+                    self.current_step += 1
+                    return {}
+
         for batch_idx in range(batch_size):
             if batch_idx >= eval_logits.shape[0]:
                 continue
-
-            # Check if this step should be evaluated (strategy filtering)
-            if self.strategy is not None:
-                if hasattr(self.strategy, 'should_evaluate_step_number'):
-                    if not self.strategy.should_evaluate_step_number(self.current_step):
-                        self.current_step += 1
-                        continue
 
             # Ensure token ID tensors are on the correct device
             if eval_logits.device != self.yes_token_ids_tensor.device:
                 self.yes_token_ids_tensor = self.yes_token_ids_tensor.to(eval_logits.device)
                 self.no_token_ids_tensor = self.no_token_ids_tensor.to(eval_logits.device)
 
-            # Compute evaluation distribution (yes/no logits from suffix position)
-            eval_metrics = self._compute_evaluation_distribution(
-                eval_logits[batch_idx], batch_idx
+            # Compute generation distribution (next token logits)
+            gen_metrics = self._compute_generation_distribution(
+                gen_logits[batch_idx],
+                gen_probs=gen_probs[batch_idx] if gen_probs is not None else None,
+                gen_top_k_values=gen_top_k_values[batch_idx] if gen_top_k_values is not None else None,
+                gen_top_k_indices=gen_top_k_indices[batch_idx] if gen_top_k_indices is not None else None,
             )
 
-            # Compute generation distribution (last generated token logits)
-            gen_metrics = self._compute_generation_distribution(gen_logits[batch_idx])
+            # Compute evaluation distribution (yes/no logits from suffix position)
+            eval_metrics = self._compute_evaluation_distribution(
+                eval_logits[batch_idx],
+                eval_probs=eval_probs[batch_idx] if eval_probs is not None else None,
+                eval_top_k_values=eval_top_k_values[batch_idx] if eval_top_k_values is not None else None,
+                eval_top_k_indices=eval_top_k_indices[batch_idx] if eval_top_k_indices is not None else None,
+            )
 
             # Calculate prediction metrics
             prediction_score = self._calculate_prediction_score(
                 eval_metrics['yes_prob'], eval_metrics['no_prob'], batch_idx
             )
-            uncertainty_metrics = self._calculate_uncertainty_metrics(
+            uncertainty_metrics = _calculate_uncertainty_for_eval(
                 eval_metrics['yes_prob'], eval_metrics['no_prob']
             )
             is_flagged = self.is_flagged_response(eval_metrics['eval_token'], batch_idx)
@@ -618,30 +617,29 @@ class LogitAnalyzer:
             prediction_metrics = {
                 'prediction_score': prediction_score,
                 'is_flagged': is_flagged,
-                **uncertainty_metrics,  # Includes coverage, binary_uncertainty, confidence, eval_worthiness
+                **uncertainty_metrics,  # Includes coverage, binary_entropy, confidence, eval_worthiness
             }
 
-            # Extract and decode last generated token
-            last_generated_token = self._extract_last_generated_token(
-                last_generated_token_ids, batch_idx
+            # Extract and decode generated token
+            generated_token = self._decode_next_token(
+                next_tokens, batch_idx
             )
 
             # Build current content (incremental)
-            current_content = self._build_current_content(batch_idx, last_generated_token)
+            current_content = self._build_current_content(batch_idx, generated_token)
 
-            # Create complete LogitAnalyzerStep
+            # Create and complete a LogitAnalyzerStep
             step = self._create_analyzer_step(
                 eval_metrics, gen_metrics, prediction_metrics,
-                current_content, last_generated_token
+                current_content, generated_token
             )
 
             self.all_steps[batch_idx].append(step)
 
-            # Real-time metrics for resampling
             real_time_metrics[batch_idx] = {
                 'yes_prob': eval_metrics['yes_prob'],
                 'no_prob': eval_metrics['no_prob'],
-                'binary_uncertainty': uncertainty_metrics['binary_uncertainty'],
+                'binary_entropy': uncertainty_metrics['binary_entropy'],
                 'prediction_score': prediction_score,
                 'coverage': uncertainty_metrics['coverage'],
                 'eval_worthiness': uncertainty_metrics['eval_worthiness'],
@@ -668,7 +666,6 @@ class LogitAnalyzer:
 
         steps = self.all_steps[batch_idx]
 
-        # OPTIONAL: Re-build current_content from final_input_ids for better accuracy
         # (useful if incremental decoding had issues)
         if final_input_ids is not None and self.input_ids is not None:
             if batch_idx < len(self.input_ids):
@@ -694,7 +691,7 @@ class LogitAnalyzer:
             return []
         return [step for step in self.all_steps[batch_idx] if step.is_flagged]
 
-    def analyze_response_logits(self, eval_logits):
+    def analyze_eval_logits(self, eval_logits):
         """
         Analyze evaluation logits to extract yes/no probabilities.
 
@@ -710,9 +707,9 @@ class LogitAnalyzer:
 
         probs = torch.nn.functional.softmax(eval_logits[0], dim=-1)
 
-        # Average probability over all yes/no token variants
-        yes_prob = sum(probs[tid].item() for tid in self.yes_token_ids) / len(self.yes_token_ids)
-        no_prob = sum(probs[tid].item() for tid in self.no_token_ids) / len(self.no_token_ids)
+        # sum probability over all yes/no token variants
+        yes_prob = sum(probs[tid].item() for tid in self.yes_token_ids)
+        no_prob = sum(probs[tid].item() for tid in self.no_token_ids)
 
         return torch.tensor(yes_prob), torch.tensor(no_prob)
 

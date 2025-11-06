@@ -3766,15 +3766,33 @@ class GenerationMixin:
                 # TODO (joao): this OP throws "skipping cudagraphs due to ['incompatible ops']", find solution
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
+                if logit_analyzer is not None:
+                    probs = nn.functional.softmax(next_token_scores, dim=-1)
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
 
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
-            # Track suffix evaluation step if logit_analyzer is provided
+            # Track the evaluation step if logit_analyzer is provided
             if logit_analyzer is not None:
-                logit_analyzer.add_decoding_step(eval_logits, next_token_logits, input_ids_with_eval, next_tokens)
+                # precompute eval distribution
+                eval_probs = nn.functional.softmax(eval_logits, dim=-1)
+                eval_top_k_values, eval_top_k_indices = torch.topk(eval_probs, k=logit_analyzer.top_k)
+
+                # precompute gen distribution
+                gen_top_k_values, gen_top_k_indices = torch.topk(next_token_scores, k=logit_analyzer.top_k)
+                logit_analyzer.add_decoding_step(
+                    eval_logits=eval_logits,
+                    eval_probs=eval_probs,
+                    eval_top_k_values=eval_top_k_values,
+                    eval_top_k_indices=eval_top_k_indices,
+                    gen_logits=next_token_logits,
+                    gen_probs=probs,
+                    gen_top_k_values=gen_top_k_values,
+                    gen_top_k_indices=gen_top_k_indices,
+                    next_tokens=next_tokens
+                )
 
             # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
