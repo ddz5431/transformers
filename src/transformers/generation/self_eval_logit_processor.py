@@ -569,13 +569,6 @@ class LogitAnalyzer:
 
         real_time_metrics = {}
 
-        # Check strategy filtering ONCE per step (before batch loop)
-        if self.strategy is not None:
-            if hasattr(self.strategy, 'should_evaluate_step_number'):
-                if not self.strategy.should_evaluate_step_number(self.current_step):
-                    self.current_step += 1
-                    return {}
-
         for batch_idx in range(batch_size):
             if batch_idx >= eval_logits.shape[0]:
                 continue

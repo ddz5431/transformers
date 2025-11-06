@@ -3779,7 +3779,7 @@ class GenerationMixin:
                 # TODO (joao): this OP throws "skipping cudagraphs due to ['incompatible ops']", find solution
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
-                if logit_analyzer is not None:
+                if logit_analyzer is not None and should_evaluate:
                     probs = nn.functional.softmax(next_token_scores, dim=-1)
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
 
