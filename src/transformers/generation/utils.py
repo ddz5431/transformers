@@ -2402,7 +2402,7 @@ class GenerationMixin(ContinuousMixin):
         generation_mode = generation_config.get_generation_mode(assistant_model)
         if isinstance(custom_generate, Callable):
             decoding_method = custom_generate
-        elif suffix_eval_ids is not None and generation_mode == GenerationMode.SAMPLE:
+        elif suffix_eval_ids is not None and generation_mode == GenerationMode.GREEDY_SEARCH:
             decoding_method = type(self)._generate_with_efficient_self_evaluation
             generation_mode_kwargs["suffix_eval_ids"] = suffix_eval_ids
             generation_mode_kwargs["logit_analyzer"] = logit_analyzer
@@ -2985,17 +2985,21 @@ class GenerationMixin(ContinuousMixin):
                 model_kwargs["attention_mask"] = extended_attention_mask
 
                 # extend cache_position to include suffix positions
-                # cache_position must match the length of tokens being processed
+                # cache_pos = [N] means "we want to generate for position N"
+                # We need to process: token at position N-1, then suffix at positions N to N+suffix_len-1
                 if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
-                    cache_pos = model_kwargs["cache_position"]
-                    last_pos = cache_pos[-1]
+                    cache_pos = model_kwargs["cache_position"]  # e.g., [15]
+                    # The generation token (tok_14) needs to be processed at position 14, not 15
+                    gen_token_position = cache_pos - 1  # e.g., [14]
+                    # Suffix tokens are processed at positions cache_pos[0] to cache_pos[0] + suffix_len - 1
                     suffix_positions = torch.arange(
-                        last_pos + 1,
-                        last_pos + 1 + suffix_eval_ids.shape[1],
+                        cache_pos[0],  # Start at current cache_pos (e.g., 15)
+                        cache_pos[0] + suffix_eval_ids.shape[1],  # e.g., 15 + 24 = 39
                         device=cache_pos.device,
                         dtype=cache_pos.dtype
-                    )
-                    extended_cache_position = torch.cat([cache_pos, suffix_positions])
+                    )  # e.g., [15, 16, ..., 38]
+                    # Concatenate: [14, 15, ..., 38] (25 positions total)
+                    extended_cache_position = torch.cat([gen_token_position, suffix_positions])
                     model_kwargs["cache_position"] = extended_cache_position
                 else:
                     extended_cache_position = model_kwargs.get("cache_position")

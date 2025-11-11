@@ -92,7 +92,7 @@ def test_uncertainty_metrics():
         yes_prob = test["yes_prob"]
         no_prob = test["no_prob"]
 
-        coverage, binary_uncertainty, eval_worthiness = analyzer._calculate_uncertainty_metrics(
+        coverage, binary_uncertainty, eval_worthiness = _calculate_uncertainty_for_eval(
             yes_prob, no_prob
         )
 
