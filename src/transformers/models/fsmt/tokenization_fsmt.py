@@ -102,7 +102,7 @@ def remove_non_printing_char(text):
     return "".join(output)
 
 
-# Porting notes:
+# Porting claude_notes:
 # this one is modeled after XLMTokenizer
 #
 # added:

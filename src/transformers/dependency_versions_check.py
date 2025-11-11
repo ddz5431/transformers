@@ -19,7 +19,7 @@ from .utils.versions import require_version, require_version_core
 # define which module versions we always want to check at run time
 # (usually the ones defined in `install_requires` in setup.py)
 #
-# order specific notes:
+# order specific claude_notes:
 # - tqdm must be checked before tokenizers
 
 pkgs_to_check_at_runtime = [

@@ -147,7 +147,7 @@ def load_tf_weights_in_mobilenet_v1(model, config, tf_checkpoint_path):
 
 def apply_tf_padding(features: torch.Tensor, conv_layer: nn.Conv2d) -> torch.Tensor:
     """
-    Apply TensorFlow-style "SAME" padding to a convolution layer. See the notes at:
+    Apply TensorFlow-style "SAME" padding to a convolution layer. See the claude_notes at:
     https://www.tensorflow.org/api_docs/python/tf/nn#notes_on_padding_2
     """
     in_height, in_width = features.shape[-2:]

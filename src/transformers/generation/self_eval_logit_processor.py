@@ -718,7 +718,7 @@ class LogitAnalyzer:
         return os.path.join(*base_path)
 
     def _get_output_path(self, batch_idx):
-        data_dir = os.environ.get("SUFFIX_EVAL_OUTPUT_DIR", "./suffix_eval_results")
+        data_dir = os.environ.get("SUFFIX_EVAL_OUTPUT_DIR", "./stepwise_info")
 
         if self.dataset is None or self.subtask is None or self.n_shots is None:
             logger.error(

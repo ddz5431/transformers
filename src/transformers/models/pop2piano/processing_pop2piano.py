@@ -65,7 +65,7 @@ class Pop2PianoProcessor(ProcessorMixin):
     ) -> Union[BatchFeature, BatchEncoding]:
         """
         This method uses [`Pop2PianoFeatureExtractor.__call__`] method to prepare log-mel-spectrograms for the model,
-        and [`Pop2PianoTokenizer.__call__`] to prepare token_ids from notes.
+        and [`Pop2PianoTokenizer.__call__`] to prepare token_ids from claude_notes.
 
         Please refer to the docstring of the above two methods for more information.
         """
@@ -75,7 +75,7 @@ class Pop2PianoProcessor(ProcessorMixin):
         if (audio is None and sampling_rate is None) and (notes is None):
             raise ValueError(
                 "You have to specify at least audios and sampling_rate in order to use feature extractor or "
-                "notes to use the tokenizer part."
+                "claude_notes to use the tokenizer part."
             )
 
         if audio is not None and sampling_rate is not None:

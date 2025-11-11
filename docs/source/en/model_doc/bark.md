@@ -155,7 +155,7 @@ Bark can generate highly realistic, **multilingual** speech as well as other aud
 >>> # Multilingual speech - French - let's use a voice_preset as well
 >>> inputs = processor("Incroyable! Je peux générer du son.", voice_preset="fr_speaker_5")
 
->>> # Bark can also generate music. You can help it out by adding music notes around your lyrics.
+>>> # Bark can also generate music. You can help it out by adding music claude_notes around your lyrics.
 >>> inputs = processor("♪ Hello, my dog is cute ♪")
 
 >>> audio_array = model.generate(**inputs)

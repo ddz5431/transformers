@@ -64,7 +64,7 @@ To create the package for pypi.
 8. Upload the final version to actual pypi:
    twine upload dist/* -r pypi
 
-9. Copy the release notes from RELEASE.md to the tag in github once everything is looking hunky-dory.
+9. Copy the release claude_notes from RELEASE.md to the tag in github once everything is looking hunky-dory.
 """
 
 import os

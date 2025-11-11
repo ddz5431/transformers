@@ -88,7 +88,7 @@ def run_search():
         type=str,
         const=datetime_now(),
         help=(
-            "add custom notes to be printed before the results table. If no value is passed, the current datetime"
+            "add custom claude_notes to be printed before the results table. If no value is passed, the current datetime"
             " string will be used."
         ),
     )

@@ -3262,7 +3262,7 @@ class GenerationMixin(ContinuousMixin):
         """
         Get top-K continuations given the accumulated log probs on the next token.
 
-        A few notes to understand what's going on:
+        A few claude_notes to understand what's going on:
         1. Each item in batch has `num_beams` * `vocab_size` candidate continuations. For each item, get the
         top K [K = (number of EOS tokens + 1) * `num_beams`] candidates with the highest accumulated
         log-probabilities, or sample them without replacement using the accumulated scores

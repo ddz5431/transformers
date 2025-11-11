@@ -1968,7 +1968,7 @@ model_hidden_size = config.d_model
 # batch size has to be divisible by world_size, but can be bigger than world_size
 train_batch_size = 1 * world_size
 
-# ds_config notes
+# ds_config claude_notes
 #
 # - enable bf16 if you use Ampere or higher GPU - this will run in mixed precision and will be
 # faster.

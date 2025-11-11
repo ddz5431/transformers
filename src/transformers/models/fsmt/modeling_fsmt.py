@@ -62,7 +62,7 @@ _CONFIG_FOR_DOC = "FSMTConfig"
 
 # See all FSMT models at https://huggingface.co/models?filter=fsmt
 
-# Porting notes:
+# Porting claude_notes:
 # this one is modeled after BartModel*
 #
 # Currently only translation (fairseq also has weights for LM)

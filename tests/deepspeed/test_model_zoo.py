@@ -131,7 +131,7 @@ SPEECH_TO_TEXT_TINY = "hf-internal-testing/tiny-random-speech_to_text"
 # *** Reactive mode ***
 # models with low usage, unstable API, things about to change - do nothing about the following until someone runs into a problem
 TAPAS_TINY = "hf-internal-testing/tiny-random-tapas"
-# additional notes on tapas
+# additional claude_notes on tapas
 # 1. "Table must be of type pd.DataFrame" failure
 
 
