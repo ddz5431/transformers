@@ -10,6 +10,42 @@ import torch
 
 logger = logging.getLogger(__name__)
 
+TASK_CHECKPOINT_CONFIGS = {
+      "math": {
+          "min_tokens_before_eval": 5,
+          "bad_checkpoint_tokens": {'+', '-', '*', '/', '=', ',', '(', ')'},
+          "good_checkpoint_tokens": {'\n', '.', ':', ';'},
+          "good_checkpoint_phrases": ['therefore', 'thus', 'so', 'hence', 'step'],
+          "use_gen_entropy": True,
+          "gen_entropy_weight": 0.3,
+      },
+      "factuality": {
+          "min_tokens_before_eval": 8,
+          "bad_checkpoint_tokens": set(),
+          "good_checkpoint_tokens": {'.', '!', '?', '\n'},
+          "good_checkpoint_phrases": [],
+          "use_gen_entropy": False,
+          "gen_entropy_weight": 0.0,
+      },
+      "safety": {
+          "min_tokens_before_eval": 3,
+          "bad_checkpoint_tokens": set(),
+          "good_checkpoint_tokens": set(),
+          "good_checkpoint_phrases": [],
+          "use_gen_entropy": False,
+          "gen_entropy_weight": 0.0,
+      },
+      "general": {  # Fallback
+          "min_tokens_before_eval": 1,
+          "bad_checkpoint_tokens": set(),
+          "good_checkpoint_tokens": set(),
+          "good_checkpoint_phrases": [],
+          "use_gen_entropy": False,
+          "gen_entropy_weight": 0.0,
+      },
+  }
+
+
 @dataclass
 class LogitAnalyzerStep:
     """
@@ -17,11 +53,11 @@ class LogitAnalyzerStep:
     Built directly during generation (in add_decoding_step).
 
     GENERAL PURPOSE: Can evaluate any yes/no question during generation.
-    Examples:
-      - Safety: "Is this text unsafe?" (yes = flagged)
-      - Correctness: "Is this answer correct?" (yes = flagged)
-      - Factuality: "Does this contain errors?" (yes = flagged)
-      - Quality: "Is this response helpful?" (no = flagged)
+    Examples (Unified "Confirm Quality" Framework):
+      - Safety: "Is this text safe?" (no = flagged)
+      - Correctness: "Is this answer correct?" (no = flagged)
+      - Factuality: "Is this answer factual?" (no = flagged)
+      - Inverted: "Are there errors?" (yes = flagged)
     """
     step: int
     eval_token: str
@@ -57,45 +93,26 @@ class LogitAnalyzerStep:
 
 
 GENRE_CONFIG = {
-    # General-purpose configurations for different evaluation types
     # target_signal: which token indicates a "positive" match (yes or no)
     # signal_polarity: +1 if "yes" is bad/flagged, -1 if "no" is bad/flagged
-
-    "standard": {"target_signal": "yes", "signal_polarity": 1},
-    "positive_detection": {"target_signal": "yes", "signal_polarity": 1},  # "Is X present?" yes=flagged
-    "negative_detection": {"target_signal": "no", "signal_polarity": -1},  # "Is X absent?" no=flagged
+    "standard": {"target_signal": "no", "signal_polarity": -1},
     "adversarial": {"target_signal": "no", "signal_polarity": -1},
     "negation_traps": {"target_signal": "no", "signal_polarity": -1},
-    "correctness": {"target_signal": "no", "signal_polarity": -1},  # "Is this correct?" no=error/flagged
-
-    # Legacy names (for backward compatibility with existing experiments)
-    "specific_harm": {"target_signal": "yes", "signal_polarity": 1},
-    "safe_control": {"target_signal": "no", "signal_polarity": -1},
+    "inverted_standard": {"target_signal": "yes", "signal_polarity": 1},
+    "inverted_adversarial": {"target_signal": "yes", "signal_polarity": 1},
+    "inverted_negation_traps": {"target_signal": "yes", "signal_polarity": 1},
 }
 
 
-def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float):
+def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float, task_type: str="general", current_token: str=None, step_idx: int=None, gen_entropy: float=None) -> \
+dict[str, float]:
     """
-    Calculate uncertainty metrics for resampling decisions.
+    Calculate uncertainty metrics with task-aware adjustments.
 
-    Args:
-      yes_prob: Probability of "yes" token from full vocab softmax
-      no_prob: Probability of "no" token from full vocab softmax
-
-    Returns:
-        coverage: Probability mass on yes/no tokens (0 to 1)
-                High = model engages with binary question
-                Low = model wants to give a non-binary answer
-
-        binary_entropy: Binary entropy between yes and no (0 to 1)
-                         0 = certain choice, 1 = maximally uncertain (50/50)
-
-        confidence: Inverse of uncertainty (0 to 1)
-                 High = model is confident in its yes/no choice
-
-        eval_worthiness: Combined score for resampling decisions (0 to 1)
-                      High = worth resampling (model engages but is uncertain)
-                      Low = not worth resampling (doesn't engage or is certain)
+    Task-specific behavior:
+        - Math: avoids mid-calculation, uses gen_entropy for mid-reasoning detection
+        - Factuality: prefers sentence boundaries.
+        - Safety: evaluates at any position.
     """
     # Coverage: how much probability mass is on yes/no
     coverage = yes_prob + no_prob
@@ -127,6 +144,39 @@ def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float):
     # TODO think about the worthiness calculation
     eval_worthiness = coverage * binary_entropy
 
+    # Task-aware adjustments
+    config = TASK_CHECKPOINT_CONFIGS.get(task_type, TASK_CHECKPOINT_CONFIGS["general"])
+
+    # 1. too early in generation?
+    if step_idx is not None and step_idx < config["min_tokens_before_eval"]:
+        eval_worthiness = 0.0
+    # 2. Bad checkpoint (mid-calculation for math)
+    elif current_token is not None:
+        token_stripped = current_token.strip()
+        # at bad checkpoint?
+        if token_stripped in config["bad_checkpoint_tokens"]:
+            eval_worthiness = 0.0
+
+        # at good checkpoint?
+        is_good_checkpoint = (
+                token_stripped in config["good_checkpoint_tokens"] or
+                any(phrase in current_token.lower() for phrase in config["good_checkpoint_phrases"])
+        )
+
+        if is_good_checkpoint:
+            eval_worthiness *= 1.2  # Slight boost (capped at 1.0 later)
+
+    # 3. Mid-reasoning detection for math (high gen_entropy = model actively reasoning)
+    if config["use_gen_entropy"] and gen_entropy is not None:
+        # Normalize gen_entropy (typical range 0-10, with ~3-5 being normal)
+        # High gen_entropy (>5) suggests model is uncertain about next token = mid-reasoning
+        if gen_entropy > 5.0:
+            discount = 1.0 - config["gen_entropy_weight"] * (gen_entropy - 5.0) / 5.0
+            discount = max(0.1, discount)  # Don't discount below 0.1
+            eval_worthiness *= discount
+
+    eval_worthiness = min(1.0, eval_worthiness)
+
     return {
         'coverage': coverage,
         'binary_entropy': binary_entropy,
@@ -140,10 +190,10 @@ class LogitAnalyzer:
     GENERAL-PURPOSE evaluation framework for tracking yes/no signals during generation.
 
     Use cases:
-      - Safety evaluation: "Is this text unsafe?" (flag when yes)
-      - Correctness checking: "Is this answer correct?" (flag when yes)
-      - Factuality: "Does this contain errors?" (flag when yes)
-      - Quality assessment: "Is this response helpful?" (flag when no)
+      - Safety evaluation: "Is this text safe?" (flag when no)
+      - Correctness checking: "Is this answer correct?" (flag when no)
+      - Factuality: "Is this answer factual?" (flag when no)
+      - Inverted detection: "Are there errors?" (flag when yes)
       - Uncertainty-guided resampling: Use eval_worthiness for token resampling
 
     Efficiently tracks evaluation signals during generation with minimal overhead.
@@ -161,7 +211,7 @@ class LogitAnalyzer:
             tokenizer=tokenizer,
             yes_tokens=["Yes", " Yes"],
             no_tokens=["No", " No"],
-            suffix_prompt_genre="positive_detection",  # or "negative_detection"
+            suffix_prompt_genre="standard",  # or "inverted_standard", "adversarial", etc.
             strategy=strategy  # Optional: for efficient filtering
         )
 
@@ -177,6 +227,7 @@ class LogitAnalyzer:
     def __init__(
         self,
         tokenizer,
+        task_type="general",
         input_ids=None,
         eval_input_ids=None,
         full_input_ids=None,
@@ -211,6 +262,7 @@ class LogitAnalyzer:
             input_ids, eval_input_ids, full_input_ids, dataset, subtask, etc.
         """
         self.tokenizer = tokenizer
+        self.task_type = task_type
         self.strategy = strategy
         self.device = device
         self.confidence_threshold = confidence_threshold
@@ -304,18 +356,34 @@ class LogitAnalyzer:
 
     def _calculate_prediction_score(self, yes_prob: float, no_prob: float, batch_idx: int) -> float:
         """
-        Calculate a directional prediction score from yes/no probabilities.
+        Calculate a directional prediction score representing "error prediction strength".
 
-        Returns a score in [-1, +1] indicating prediction strength toward flagged
-  state:
-        +1: Strongly predicts flagged state
-        -1: Strongly predicts non-flagged state
-         0: Uncertain (50/50) or low engagement
+        Unified Framework (Yes = Good, No = Error):
+          - Standard prompts: "Is this correct?" → No = error
+          - Inverted prompts: "Are there errors?" → Yes = error
 
-        Polarity adjusts whether "yes" or "no" is the target (flagged) signal:
-          - polarity=+1: positive score means "yes" (flagged)
-          - polarity=-1: positive score means "no" (flagged)
+        Returns a score in [-1, +1]:
+          +1: Strongly predicts ERROR (flagged state)
+           0: Uncertain (50/50) or low engagement
+          -1: Strongly predicts NO ERROR (good state)
 
+        How it works:
+          1. raw_score = (yes_prob - no_prob) / (yes_prob + no_prob)
+             - Positive when model says "Yes" (good/correct)
+             - Negative when model says "No" (error/incorrect)
+
+          2. Apply signal_polarity to normalize to "error prediction":
+             - polarity=-1 (standard): Flip sign, so No → positive score → error detected
+             - polarity=+1 (inverted): Keep sign, so Yes → positive score → error detected
+
+        Examples:
+          Standard ("Is this correct?", polarity=-1):
+            - Model says Yes (0.8 prob): raw=0.6 → final=-0.6 → no error ✓
+            - Model says No (0.8 prob): raw=-0.6 → final=+0.6 → error detected ✓
+
+          Inverted ("Are there errors?", polarity=+1):
+            - Model says Yes (0.8 prob): raw=0.6 → final=+0.6 → error detected ✓
+            - Model says No (0.8 prob): raw=-0.6 → final=-0.6 → no error ✓
         """
         raw_score = (yes_prob - no_prob) / (yes_prob + no_prob + 1e-8)
 
@@ -323,7 +391,7 @@ class LogitAnalyzer:
         if batch_idx in self.signal_polarities:
             return raw_score * self.signal_polarities[batch_idx]
 
-        return raw_score  # Default: yes = flagged
+        return -raw_score  # Default: flip sign to make "No" (error) → positive score
 
     def is_flagged_response(self, eval_token: str, batch_idx: int) -> bool:
         """
@@ -331,8 +399,8 @@ class LogitAnalyzer:
 
         Returns True if the token matches the target signal for the genre.
         Examples:
-          - "Is this unsafe?" with genre="positive_detection" → True if token is "yes"
-          - "Is this helpful?" with genre="negative_detection" → True if token is "no"
+          - "Is this correct?" with genre="standard" → True if token is "no" (error detected)
+          - "Are there errors?" with genre="inverted_standard" → True if token is "yes" (error detected)
         """
         eval_token = eval_token.strip().lower()
         if eval_token not in {"yes", "no"}:
@@ -341,7 +409,7 @@ class LogitAnalyzer:
         if batch_idx in self.target_signals:
             return eval_token == self.target_signals[batch_idx]
 
-        return eval_token == "yes"
+        return eval_token == "no"  # Default: no = flagged (unified "confirm quality" framework)
 
     def _compute_evaluation_distribution(self, logits_eval, eval_probs=None, eval_top_k_values=None, eval_top_k_indices=None):
         """
@@ -599,7 +667,7 @@ class LogitAnalyzer:
                 eval_metrics['yes_prob'], eval_metrics['no_prob'], batch_idx
             )
             uncertainty_metrics = _calculate_uncertainty_for_eval(
-                eval_metrics['yes_prob'], eval_metrics['no_prob']
+                eval_metrics['yes_prob'], eval_metrics['no_prob'], task_type=self.task_type, current_token=generated_token, step_idx=self.current_step, gen_entropy=gen_metrics['gen_entropy']
             )
             is_flagged = self.is_flagged_response(eval_metrics['eval_token'], batch_idx)
 
