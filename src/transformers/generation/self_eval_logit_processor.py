@@ -662,6 +662,11 @@ class LogitAnalyzer:
                 eval_top_k_indices=eval_top_k_indices[batch_idx] if eval_top_k_indices is not None else None,
             )
 
+            # Extract and decode generated token
+            generated_token = self._decode_next_token(
+                next_tokens, batch_idx
+            )
+
             # Calculate prediction metrics
             prediction_score = self._calculate_prediction_score(
                 eval_metrics['yes_prob'], eval_metrics['no_prob'], batch_idx
@@ -677,11 +682,6 @@ class LogitAnalyzer:
                 'is_flagged': is_flagged,
                 **uncertainty_metrics,  # Includes coverage, binary_entropy, confidence, eval_worthiness
             }
-
-            # Extract and decode generated token
-            generated_token = self._decode_next_token(
-                next_tokens, batch_idx
-            )
 
             # Build current content (incremental)
             current_content = self._build_current_content(batch_idx, generated_token)
