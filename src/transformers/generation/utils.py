@@ -2998,7 +2998,6 @@ class GenerationMixin(ContinuousMixin):
                         device=cache_pos.device,
                         dtype=cache_pos.dtype
                     )  # e.g., [15, 16, ..., 38]
-                    # Concatenate: [14, 15, ..., 38] (25 positions total)
                     extended_cache_position = torch.cat([gen_token_position, suffix_positions])
                     model_kwargs["cache_position"] = extended_cache_position
                 else:
@@ -3070,8 +3069,6 @@ class GenerationMixin(ContinuousMixin):
                 # TODO (joao): this OP throws "skipping cudagraphs due to ['incompatible ops']", find solution
                 next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
             else:
-                if logit_analyzer is not None and should_evaluate:
-                    probs = nn.functional.softmax(next_token_scores, dim=-1)
                 next_tokens = torch.argmax(next_token_scores, dim=-1)
 
             # finished sentences should have their next token be a padding token
@@ -3080,6 +3077,10 @@ class GenerationMixin(ContinuousMixin):
 
             # Track the evaluation step if logit_analyzer is provided
             if logit_analyzer is not None and should_evaluate:
+                # Compute probs only when needed (for logit_analyzer)
+                if not do_sample:  # If do_sample, probs already computed above
+                    probs = nn.functional.softmax(next_token_scores, dim=-1)
+
                 # precompute eval distribution
                 eval_probs = nn.functional.softmax(eval_logits, dim=-1)
                 eval_top_k_values, eval_top_k_indices = torch.topk(eval_logits, k=logit_analyzer.top_k)
