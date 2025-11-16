@@ -1010,7 +1010,6 @@ class GenerationMixin(ContinuousMixin):
                 )
 
         # Set cache_position for NEXT iteration
-        # don't pre-extend for suffix here. it will be extended at loop start when should_evaluate=True
         if model_kwargs.get("use_cache", True):
             if suffix_len > 0:
                 # we just processed suffix, get the gen token position and increment
@@ -2969,39 +2968,7 @@ class GenerationMixin(ContinuousMixin):
 
             # conditionally prepare model inputs
             if should_evaluate:
-                input_ids_with_eval = torch.cat([input_ids, suffix_eval_ids], dim=-1)
-
-                # initialize attention_mask if it doesn't exist
-                if "attention_mask" not in model_kwargs or model_kwargs["attention_mask"] is None:
-                    model_kwargs["attention_mask"] = torch.ones_like(input_ids, dtype=torch.long)
-
-                suffix_attention_mask = torch.ones(
-                    (model_kwargs["attention_mask"].shape[0], suffix_eval_ids.shape[1]),
-                    dtype=model_kwargs["attention_mask"].dtype,
-                    device=model_kwargs["attention_mask"].device
-                )
-                extended_attention_mask = torch.cat([model_kwargs["attention_mask"], suffix_attention_mask], dim=-1)
-                model_kwargs["attention_mask"] = extended_attention_mask
-
-                # extend cache_position to include suffix positions
-                # cache_pos = [N] means "we want to generate for position N"
-                # We need to process: token at position N-1, then suffix at positions N to N+suffix_len-1
-                if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
-                    cache_pos = model_kwargs["cache_position"]  # e.g., [15]
-                    # The generation token (tok_14) needs to be processed at position 14, not 15
-                    gen_token_position = cache_pos - 1  # e.g., [14]
-                    # Suffix tokens are processed at positions cache_pos[0] to cache_pos[0] + suffix_len - 1
-                    suffix_positions = torch.arange(
-                        cache_pos[0],  # Start at current cache_pos (e.g., 15)
-                        cache_pos[0] + suffix_eval_ids.shape[1],  # e.g., 15 + 24 = 39
-                        device=cache_pos.device,
-                        dtype=cache_pos.dtype
-                    )  # e.g., [15, 16, ..., 38]
-                    extended_cache_position = torch.cat([gen_token_position, suffix_positions])
-                    model_kwargs["cache_position"] = extended_cache_position
-                else:
-                    extended_cache_position = model_kwargs.get("cache_position")
-
+                input_ids_with_eval, model_kwargs = self._prepare_for_self_eval_with_suffix(input_ids, suffix_eval_ids, model_kwargs)
                 model_inputs = self.prepare_inputs_for_generation(input_ids_with_eval, **model_kwargs)
             else:
                 # No suffix concatenation
@@ -3144,8 +3111,35 @@ class GenerationMixin(ContinuousMixin):
         else:
             return input_ids
 
-    def _self_eval(self):
-        pass
+    def _prepare_for_self_eval_with_suffix(self, input_ids, suffix_eval_ids, model_kwargs):
+        input_ids_with_eval = torch.cat([input_ids, suffix_eval_ids], dim=-1)
+
+        if "attention_mask" not in model_kwargs or model_kwargs["attention_mask"] is None:
+            model_kwargs["attention_mask"] = torch.ones_like(input_ids, dtype=torch.long)
+
+        suffix_attention_mask = torch.ones(
+            (model_kwargs["attention_mask"].shape[0], suffix_eval_ids.shape[1]),
+            dtype=model_kwargs["attention_mask"].dtype,
+            device=model_kwargs["attention_mask"].device
+        )
+        extended_attention_mask = torch.cat([model_kwargs["attention_mask"], suffix_attention_mask], dim=-1)
+        model_kwargs["attention_mask"] = extended_attention_mask
+
+        if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
+            cache_pos = model_kwargs["cache_position"]
+            last_cache_pos = cache_pos[-1]
+            suffix_positions = torch.arange(
+                last_cache_pos + 1,
+                last_cache_pos + 1 + suffix_eval_ids.shape[1],
+                device=cache_pos.device,
+                dtype=cache_pos.dtype
+            )
+            extended_cache_position = torch.cat([cache_pos, suffix_positions], dim=-1)
+            model_kwargs["cache_position"] = extended_cache_position
+        else:
+            extended_cache_position = model_kwargs.get("cache_position")
+
+        return input_ids_with_eval, model_kwargs
 
     @staticmethod
     def _flatten_beam_dim(tensor: torch.Tensor) -> torch.Tensor:
