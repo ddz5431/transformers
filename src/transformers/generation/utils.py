@@ -1851,15 +1851,14 @@ class GenerationMixin(ContinuousMixin):
         else:
             cache_position = torch.ones(seq_length, dtype=torch.int64, device=device).cumsum(0) - 1
 
-        past_length = 0
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
-            past_length = 0
-            # Support for BC tuple cache format
             if isinstance(cache, tuple):
                 past_length = cache[0][0].shape[2]
             elif hasattr(cache, "get_seq_length"):
                 past_length = cache.get_seq_length()
+            else:
+                past_length = 0  # Explicit fallback
 
             cache_position = cache_position[past_length:]
 
@@ -3144,6 +3143,9 @@ class GenerationMixin(ContinuousMixin):
                 )
         else:
             return input_ids
+
+    def _self_eval(self):
+        pass
 
     @staticmethod
     def _flatten_beam_dim(tensor: torch.Tensor) -> torch.Tensor:
