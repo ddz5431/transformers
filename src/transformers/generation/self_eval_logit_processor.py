@@ -62,8 +62,8 @@ TASK_CHECKPOINT_CONFIGS = {
           "bad_checkpoint_tokens": {'+', '-', '*', '/', '=', ',', '(', ')'},
           "good_checkpoint_tokens": {'\n', '.', ':', ';'},
           "good_checkpoint_phrases": ['therefore', 'thus', 'so', 'hence', 'step'],  # Well-motivated by research!
-          "use_gen_entropy": True,  # WARNING: May be discounting at WRONG moments (see TODO)
-          "gen_entropy_weight": 0.3,  # Controls gen_entropy discount strength
+          "use_gen_entropy": False,  # ABLATION: Disabled to test if discount is backwards
+          "gen_entropy_weight": 0.0,  # Disabled for ablation experiment
       },
       "factuality": {
           "min_tokens_before_eval": 8,
@@ -98,27 +98,30 @@ class LogitAnalyzerStep:
     Complete step information with decoded strings.
     Built directly during generation (in add_decoding_step).
 
-    GENERAL PURPOSE: Can evaluate any yes/no question during generation.
+    GENERAL PURPOSE: Can evaluate any yes/no/continue question during generation.
     Examples (Unified "Confirm Quality" Framework):
       - Safety: "Is this text safe?" (no = flagged)
       - Correctness: "Is this answer correct?" (no = flagged)
       - Factuality: "Is this answer factual?" (no = flagged)
       - Inverted: "Are there errors?" (yes = flagged)
+      - Continue: Model needs more reasoning before evaluation
     """
     step: int
     eval_token: str
     yes_prob: float
     no_prob: float
+    continue_prob: float  # Probability of Continue tokens
     error_signal: float  # Polarity-aware: (yes-no)/(yes+no) * polarity. +1=error, -1=good, 0=uncertain
     is_flagged: bool  # Whether eval_token matches target signal
     current_content: str
     current_generated_token: str
 
     # Uncertainty metrics for resampling decisions
-    coverage: float  # yes_prob + no_prob (how much probability mass on yes/no)
-    binary_entropy: float  # Uncertainty between yes/no [0,1]
+    coverage: float  # yes_prob + no_prob + continue_prob (how much probability mass on eval tokens)
+    binary_entropy: float  # Uncertainty between yes/no [0,1] (DEPRECATED: ignores Continue)
+    entropy_3way: float  # FIXED 2025-01-20: Full 3-way uncertainty (yes/no/continue) [0,1]
     certainty: float  # 1 - binary_entropy [0,1] (how certain the model is)
-    eval_worthiness: float  # coverage * binary_entropy (worth resampling?)
+    eval_worthiness: float  # FIXED 2025-01-20: Now = no_prob (confident error signals)
 
     # EVALUATION DISTRIBUTION (yes/no response logits from suffix position)
     eval_top_k_logits: List[float]
@@ -134,9 +137,10 @@ class LogitAnalyzerStep:
     gen_top_k_token_ids: List[int]
     gen_entropy: float
 
-    # Raw yes/no logits for all variants (for better interpretability)
+    # Raw yes/no/continue logits for all variants (for better interpretability)
     yes_logits: Dict[str, float]  # {"Yes": -2.3, " Yes": -2.1, ...}
     no_logits: Dict[str, float]   # {"No": -1.5, " No": -1.4, ...}
+    continue_logits: Dict[str, float]  # {"Continue": -2.5, " continue": -2.3, ...}
 
 
 GENRE_CONFIG = {
@@ -151,7 +155,7 @@ GENRE_CONFIG = {
 }
 
 
-def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float, task_type: str="general", current_token: str=None, step_idx: int=None, gen_entropy: float=None) -> \
+def _calculate_uncertainty_for_eval(yes_prob: float, no_prob: float, idk_prob: float = 0.0, continue_prob: float = 0.0, task_type: str="general", current_token: str=None, step_idx: int=None, gen_entropy: float=None) -> \
 dict[str, float]:
     """
     Calculate uncertainty metrics with task-aware adjustments.
@@ -160,11 +164,28 @@ dict[str, float]:
         - Math: avoids mid-calculation, uses gen_entropy for mid-reasoning detection
         - Factuality: prefers sentence boundaries.
         - Safety: evaluates at any position.
-    """
-    # Coverage: how much probability mass is on yes/no
-    coverage = yes_prob + no_prob
 
-    # Binary uncertainty: how uncertain between yes and no
+    FIXED 2025-01-20: Complete redesign based on experimental analysis
+    - Old formula: coverage * binary_entropy (rewarded uncertainty, ignored Continue)
+    - New formula: Reward confident error signals (No), penalize high Continue
+    - Analysis showed: 75-85% Continue tokens were being completely ignored!
+    """
+    # Coverage: how much probability mass is on yes/no/continue tokens
+    coverage = yes_prob + no_prob + continue_prob
+
+    # Compute 3-way entropy (properly includes Continue token!)
+    # OLD BUG: binary_entropy only looked at yes vs no, ignored 75-85% of distribution
+    probs = [yes_prob, no_prob, continue_prob]
+    entropy_3way = 0.0
+    for p in probs:
+        if p > 1e-8:
+            entropy_3way -= p * np.log2(p)
+
+    # Normalize to [0, 1] (max entropy for 3 tokens is log2(3) = 1.585)
+    max_entropy_3way = np.log2(3)
+    entropy_3way_normalized = entropy_3way / max_entropy_3way if max_entropy_3way > 0 else 0.0
+
+    # Binary entropy (keep for backwards compatibility in logging)
     if coverage > 1e-8:
         yes_norm = yes_prob / coverage
         no_norm = no_prob / coverage
@@ -178,20 +199,26 @@ dict[str, float]:
 
         binary_entropy = entropy
     else:
-        # Model doesn't engage with yes/no at all
-        # Maximum uncertainty since we don't know what it wants to say
         binary_entropy = 1.0
 
     # Certainty: inverse of uncertainty (how certain the model is)
     certainty = 1.0 - binary_entropy
 
-    # Eval worthiness: captures when step-level evaluation signal is most informative
-    # High when: coverage is high (model engages with yes/no)
-    #            AND binary_entropy is high (model is uncertain)
-    # Currently used for: logging/analysis, future use: resampling decisions or training signals
+    # NEW EVAL WORTHINESS FORMULA (2025-01-20)
+    # Goal: Reward confident error signals (high No), ignore uncertainty (high Continue)
     #
-    # TODO: Validate and refine metrics based on experimental results
-    #   Current formula: eval_worthiness = coverage * binary_entropy
+    # Experimental evidence:
+    # - Correct samples:   17.5% Yes, 7.0% No, 75.5% Continue
+    # - Incorrect samples:  7.9% Yes, 7.2% No, 84.9% Continue
+    # - Key finding: +9.5% Yes on correct = model CAN distinguish, but mostly says Continue
+    #
+    # Design principles:
+    # 1. High No prob = confident error signal → HIGH worthiness (flag this step)
+    # 2. High Yes prob = confident "all good" → LOW worthiness (no need to flag)
+    # 3. High Continue = uncertain/exploring → MEDIUM worthiness (keep going)
+    #
+    # Formula: Prioritize confident error signals
+    eval_worthiness = no_prob  # Simple: just use raw No probability!
     #
     #   PRIORITY #1 - End-to-end validation (do this FIRST):
     #   Key insight from "Spurious Rewards in RLVR" (Shao et al., 2024):
@@ -319,6 +346,7 @@ dict[str, float]:
     return {
         'coverage': coverage,
         'binary_entropy': binary_entropy,
+        'entropy_3way': entropy_3way_normalized,  # NEW: proper 3-way uncertainty
         'certainty': certainty,
         'eval_worthiness': eval_worthiness
     }
@@ -383,6 +411,7 @@ class LogitAnalyzer:
         device='cuda' if torch.cuda.is_available() else 'cpu',
         confidence_threshold: float = 0.0,
         top_k: int = 20,
+        output_dir=None,
     ):
         """
         Initialize LogitAnalyzer.
@@ -396,6 +425,7 @@ class LogitAnalyzer:
             device: Device for token ID tensors ('cuda' or 'cpu')
             confidence_threshold: Threshold for is_flagged determination
             top_k: Number of top logits/tokens to track (default: 20)
+            output_dir: Optional output directory for stepwise info files
 
             Legacy parameters (for backward compatibility with older experiments):
             input_ids, eval_input_ids, full_input_ids, dataset, subtask, etc.
@@ -406,8 +436,9 @@ class LogitAnalyzer:
         self.device = device
         self.confidence_threshold = confidence_threshold
         self.top_k = top_k
+        self.output_dir = output_dir
 
-        # Prepare yes/no tokens
+        # Prepare yes/no/IDK/continue tokens
         if yes_tokens is None:
             self.yes_tokens = ["Yes", " Yes", "yes", " yes"]
         else:
@@ -418,14 +449,21 @@ class LogitAnalyzer:
         else:
             self.no_tokens = no_tokens
 
+        # Add Continue tokens
+        self.continue_tokens = ["Continue", " Continue", "continue", " continue"]
+
         # Pre-compute and cache token IDs on GPU for vectorized operations
         yes_ids = self._get_token_ids(self.yes_tokens)
         no_ids = self._get_token_ids(self.no_tokens)
+        continue_ids = self._get_token_ids(self.continue_tokens)
+
         self.yes_token_ids_tensor = torch.tensor(yes_ids, device=device)
         self.no_token_ids_tensor = torch.tensor(no_ids, device=device)
+        self.continue_token_ids_tensor = torch.tensor(continue_ids, device=device)
 
         self.yes_token_ids = yes_ids
         self.no_token_ids = no_ids
+        self.continue_token_ids = continue_ids
 
         self.current_step = 0
 
@@ -489,8 +527,13 @@ class LogitAnalyzer:
             ids = self.tokenizer.encode(token, add_special_tokens=False)
             if len(ids) == 1:
                 token_ids.append(ids[0])
+            elif len(ids) > 1:
+                # Multi-token phrases like "I don't know" - skip for now
+                # We'll only match single-token variants
+                logger.warning(f"Token '{token}' encodes to {len(ids)} tokens, skipping (need single-token match)")
+                continue
             else:
-                raise ValueError(f"Token '{token}' encodes to {len(ids)} tokens, expected 1")
+                raise ValueError(f"Token '{token}' encodes to 0 tokens")
         return token_ids
 
     def _calculate_error_signal(self, yes_prob: float, no_prob: float, batch_idx: int) -> float:
@@ -570,9 +613,10 @@ class LogitAnalyzer:
         else:
             probs_eval = eval_probs
 
-        # Yes/no probabilities
+        # Yes/no/continue probabilities
         yes_prob = probs_eval[self.yes_token_ids_tensor].sum().item()
         no_prob = probs_eval[self.no_token_ids_tensor].sum().item()
+        continue_prob = probs_eval[self.continue_token_ids_tensor].sum().item() if len(self.continue_token_ids_tensor) > 0 else 0.0
 
         # Use precomputed top-k if available
         if eval_top_k_values is None or eval_top_k_indices is None:
@@ -586,7 +630,7 @@ class LogitAnalyzer:
         # Entropy
         eval_entropy = -torch.sum(probs_eval * torch.log(probs_eval + 1e-10)).item()
 
-        # Yes/no raw logits (all variants)
+        # Yes/no/continue raw logits (all variants)
         yes_logits = {
             self.tokenizer.decode([tid]): logits_eval[tid].item()
             for tid in self.yes_token_ids
@@ -595,6 +639,10 @@ class LogitAnalyzer:
             self.tokenizer.decode([tid]): logits_eval[tid].item()
             for tid in self.no_token_ids
         }
+        continue_logits = {
+            self.tokenizer.decode([tid]): logits_eval[tid].item()
+            for tid in self.continue_token_ids
+        } if len(self.continue_token_ids) > 0 else {}
 
         # Eval token (argmax)
         eval_token_id = logits_eval.argmax().item()
@@ -603,6 +651,7 @@ class LogitAnalyzer:
         return {
             'yes_prob': yes_prob,
             'no_prob': no_prob,
+            'continue_prob': continue_prob,
             'eval_top_k_logits': eval_top_k_logits,
             'eval_top_k_probs': eval_top_k_probs,
             'eval_top_k_tokens': eval_top_k_tokens,
@@ -610,6 +659,7 @@ class LogitAnalyzer:
             'eval_entropy': eval_entropy,
             'yes_logits': yes_logits,
             'no_logits': no_logits,
+            'continue_logits': continue_logits,
             'eval_token': eval_token,
         }
 
@@ -706,12 +756,14 @@ class LogitAnalyzer:
             eval_token=eval_metrics['eval_token'],
             yes_prob=eval_metrics['yes_prob'],
             no_prob=eval_metrics['no_prob'],
+            continue_prob=eval_metrics['continue_prob'],
             error_signal=prediction_metrics['error_signal'],
             is_flagged=prediction_metrics['is_flagged'],
             current_content=current_content,
             current_generated_token=current_generated_token,
             coverage=prediction_metrics['coverage'],
             binary_entropy=prediction_metrics['binary_entropy'],
+            entropy_3way=prediction_metrics['entropy_3way'],  # FIXED 2025-01-20
             certainty=prediction_metrics['certainty'],
             eval_worthiness=prediction_metrics['eval_worthiness'],
             # Evaluation distribution
@@ -726,9 +778,10 @@ class LogitAnalyzer:
             gen_top_k_tokens=gen_metrics['gen_top_k_tokens'],
             gen_top_k_token_ids=gen_metrics['gen_top_k_token_ids'],
             gen_entropy=gen_metrics['gen_entropy'],
-            # Yes/no raw logits
+            # Yes/no/continue raw logits
             yes_logits=eval_metrics['yes_logits'],
             no_logits=eval_metrics['no_logits'],
+            continue_logits=eval_metrics['continue_logits'],
         )
 
     def add_decoding_step(self, eval_logits, gen_logits, next_tokens, eval_probs=None, eval_top_k_values=None, eval_top_k_indices=None, gen_probs=None, gen_top_k_values=None, gen_top_k_indices=None):
@@ -785,6 +838,8 @@ class LogitAnalyzer:
             if eval_logits.device != self.yes_token_ids_tensor.device:
                 self.yes_token_ids_tensor = self.yes_token_ids_tensor.to(eval_logits.device)
                 self.no_token_ids_tensor = self.no_token_ids_tensor.to(eval_logits.device)
+                self.idk_token_ids_tensor = self.idk_token_ids_tensor.to(eval_logits.device)
+                self.continue_token_ids_tensor = self.continue_token_ids_tensor.to(eval_logits.device)
 
             # Compute generation distribution (next token logits)
             gen_metrics = self._compute_generation_distribution(
@@ -812,7 +867,7 @@ class LogitAnalyzer:
                 eval_metrics['yes_prob'], eval_metrics['no_prob'], batch_idx
             )
             uncertainty_metrics = _calculate_uncertainty_for_eval(
-                eval_metrics['yes_prob'], eval_metrics['no_prob'], task_type=self.task_type, current_token=generated_token, step_idx=self.current_step, gen_entropy=gen_metrics['gen_entropy']
+                eval_metrics['yes_prob'], eval_metrics['no_prob'], idk_prob=0.0, continue_prob=eval_metrics['continue_prob'], task_type=self.task_type, current_token=generated_token, step_idx=self.current_step, gen_entropy=gen_metrics['gen_entropy']
             )
             is_flagged = self.is_flagged_response(eval_metrics['eval_token'], batch_idx)
 
@@ -1052,9 +1107,12 @@ class LogitAnalyzer:
 
     def _get_output_path(self, batch_idx):
         # Support both new (date-based) and legacy (flat) output paths
-        # New format: ./results/{run_id}/logit_analyzer/
+        # New format: {output_dir}/stepwise_info/ (when output_dir is passed)
         # Legacy format: ./stepwise_info/ (backward compatibility)
-        data_dir = os.environ.get("LOGIT_ANALYZER_DIR") or os.environ.get("SUFFIX_EVAL_OUTPUT_DIR", "./stepwise_info")
+        if self.output_dir:
+            data_dir = os.path.join(self.output_dir, "stepwise_info")
+        else:
+            data_dir = os.environ.get("LOGIT_ANALYZER_DIR") or os.environ.get("SUFFIX_EVAL_OUTPUT_DIR", "./stepwise_info")
 
         if self.dataset is None or self.subtask is None or self.n_shots is None:
             logger.error(
