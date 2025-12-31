@@ -958,30 +958,26 @@ class GenerationMixin(ContinuousMixin):
                     cache_name = possible_cache_name
 
                 cache = getattr(outputs, possible_cache_name)
-
+                if cache is None: continue
                 # Truncate suffix tokens from cache
-                if suffix_len > 0 and cache is not None:
-                    # Handle DynamicCache
-                    if isinstance(cache, DynamicCache):
-                        current_length = cache.get_seq_length()
-                        new_max_length = current_length - suffix_len
-                        cache.crop(new_max_length)
+                # Handle DynamicCache
+                if isinstance(cache, DynamicCache):
+                    if suffix_len > 0:
+                        cache.crop(cache.get_seq_length() - suffix_len)
 
-                    # Handle StaticCache
-                    elif isinstance(cache, StaticCache):
-                        if hasattr(cache, 'seen_tokens'):
-                            cache.seen_tokens -= suffix_len
+                # Handle StaticCache
+                elif isinstance(cache, StaticCache):
+                    if hasattr(cache, 'seen_tokens') and suffix_len > 0:
+                        cache.seen_tokens -= suffix_len
 
-                    # Handle tuple-based legacy cache
-                    elif isinstance(cache, tuple):
-                        truncated_cache = []
-                        for layer_cache in cache:
-                            key, value = layer_cache
-                            truncated_key = key[:, :, :-suffix_len, :]
-                            truncated_value = value[:, :, :-suffix_len, :]
-                            truncated_cache.append((truncated_key, truncated_value))
-                        cache = tuple(truncated_cache)
-
+                # Handle tuple-based legacy cache
+                elif isinstance(cache, tuple):
+                    # Slicing tuples of tensors is very slow; avoid this path if possible
+                    # by using `use_cache=True` with modern Transformers versions.
+                    cache = tuple(
+                        (k[:, :, :-suffix_len, :], v[:, :, :-suffix_len, :])
+                        for k, v in cache
+                    )
                 model_kwargs[cache_name] = cache
                 break
 
@@ -992,14 +988,15 @@ class GenerationMixin(ContinuousMixin):
 
         if not is_encoder_decoder:
             # update attention mask
-            if "attention_mask" in model_kwargs:
-                attention_mask = model_kwargs["attention_mask"]
-                # If we just processed suffix tokens, remove them from attention_mask before adding new token
-                if suffix_len > 0:
-                    attention_mask = attention_mask[:, :-suffix_len]
-                model_kwargs["attention_mask"] = torch.cat(
-                    [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
-                )
+            mask = model_kwargs["attention_mask"]
+            if suffix_len > 0:
+                # Drop the suffix columns
+                mask = mask[:, :-suffix_len]
+
+            # Add the single new token mask entry
+            model_kwargs["attention_mask"] = torch.cat(
+                [mask, mask.new_ones((mask.shape[0], 1))], dim=-1
+            )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
@@ -1011,23 +1008,14 @@ class GenerationMixin(ContinuousMixin):
 
         # Set cache_position for NEXT iteration
         if model_kwargs.get("use_cache", True):
+            curr_pos = model_kwargs["cache_position"]
             if suffix_len > 0:
-                # we just processed suffix, get the gen token position and increment
-                next_token_pos = model_kwargs["cache_position"][-suffix_len - 1] + 1
+                next_pos = curr_pos[0] - suffix_len + 1
             else:
-                # No suffix, just increment from last position
-                next_token_pos = model_kwargs["cache_position"][-1] + 1
-            model_kwargs["cache_position"] = torch.tensor([next_token_pos], device=model_kwargs["cache_position"].device)
-        else:
-            # Normal generation WITHOUT cache: grow positions
-            past_positions = model_kwargs.get("cache_position")
-            new_positions = torch.arange(
-                past_positions[-1] + 1,
-                past_positions[-1] + num_new_tokens + 1,
-                dtype=past_positions.dtype,
-                device=past_positions.device
-            )
-            model_kwargs["cache_position"] = torch.cat((past_positions, new_positions))
+                next_pos = curr_pos[-1] + 1
+
+            # Keep it as a tensor to avoid CPU synchronization (.item() is a killer)
+            model_kwargs["cache_position"] = next_pos.unsqueeze(0)
 
         return model_kwargs
 
@@ -2904,6 +2892,7 @@ class GenerationMixin(ContinuousMixin):
         logit_analyzer: Optional["LogitAnalyzer"] = None,
         synced_gpus: bool = False,
         streamer: Optional["BaseStreamer"] = None,
+        profiler=None,
         **model_kwargs,
     ) -> Union[GenerateNonBeamOutput, torch.LongTensor]:
         # init values
@@ -2960,28 +2949,35 @@ class GenerationMixin(ContinuousMixin):
             is_prefill = True
 
         generation_step = 0
+
+        # Initialize the persistent ones-buffer for attention mask slicing
+        self.suffix_ones = torch.ones(
+            (batch_size, self.max_suffix_len),
+            dtype=torch.long,
+            device=input_ids.device
+        )
+
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus, device=input_ids.device):
-            # check if we need suffix for THIS step
-            should_evaluate = True
-            if logit_analyzer is not None and logit_analyzer.strategy is not None:
-                should_evaluate = logit_analyzer.strategy.should_evaluate_step_number(generation_step)
+            with profiler.profile_segment("evaluation_logic"):
+            # 1. EVALUATION GATING
+                should_evaluate = True
+                if logit_analyzer is not None and logit_analyzer.strategy is not None:
+                    should_evaluate = logit_analyzer.strategy.should_evaluate_step_number(generation_step)
 
-            # conditionally prepare model inputs
-            if should_evaluate:
-                input_ids_with_eval, model_kwargs = self._prepare_for_self_eval_with_suffix(input_ids, suffix_eval_ids, model_kwargs)
-                model_inputs = self.prepare_inputs_for_generation(input_ids_with_eval, **model_kwargs)
-            else:
-                # No suffix concatenation
-                model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
+            # 2. MODEL INPUT PREPARATION (Suffix Injection)
+            with profiler.profile_segment("forward_pass"):
+                # Temporarily extend IDs with the suffix (e.g., "Is this correct?")
+                if should_evaluate:
+                    input_ids_with_eval, model_kwargs = self._prepare_for_self_eval_with_suffix(input_ids, suffix_eval_ids, model_kwargs)
+                    model_inputs = self.prepare_inputs_for_generation(input_ids_with_eval, **model_kwargs)
+                else:
+                    model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
-            if is_prefill:
+            # 3. FORWARD PASS
+            with profiler.profile_segment("model_forward"):
                 outputs = self(**model_inputs, return_dict=True)
-                is_prefill = False
-            else:
-                outputs = model_forward(**model_inputs, return_dict=True)
 
-            # synced_gpus: don't waste resources running the code we don't need; kwargs must be updated before skipping
-            # check if NEXT step will need suffix (for setting cache_position correctly)
+            # 4. KV-CACHE MAINTENANCE (Crucial for Efficiency)
             should_evaluate_next = True
             if logit_analyzer is not None and logit_analyzer.strategy is not None:
                 should_evaluate_next = logit_analyzer.strategy.should_evaluate_step_number(generation_step + 1)
@@ -2996,20 +2992,29 @@ class GenerationMixin(ContinuousMixin):
             if synced_gpus and this_peer_finished:
                 continue
 
-            # extract logits conditionally
-            if should_evaluate:
-                next_token_logits = outputs.logits[:, 0, :].to(copy=True, dtype=torch.float32,
-                                                               device=input_ids.device)
-                eval_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32, device=input_ids.device)
-            else:
-                next_token_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32,
-                                                                device=input_ids.device)
-                eval_logits = None
+            # 5. LOGIT EXTRACTION
+            with profiler.profile_segment("logit_analyzer"):
+                # extract logits conditionally
+                if should_evaluate:
+                    # [:, 0, :] is the token being generated
+                    # [:, -1, :] is the response to the suffix prompt
+                    next_token_logits = outputs.logits[:, 0, :].to(copy=True, dtype=torch.float32,
+                                                                   device=input_ids.device)
+                    eval_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32, device=input_ids.device)
+                else:
+                    next_token_logits = outputs.logits[:, -1, :].to(copy=True, dtype=torch.float32,
+                                                                    device=input_ids.device)
+                    eval_logits = None
 
-            # pre-process distribution
+            # 6. SAMPLING & SELECTION
             next_token_scores = logits_processor(input_ids, next_token_logits)
+            probs = torch.nn.functional.softmax(next_token_scores, dim=-1)
 
-            # Store scores, attentions and hidden_states when required
+            if generation_config.do_sample:
+                next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
+            else:
+                next_tokens = torch.argmax(next_token_scores, dim=-1)
+
             if return_dict_in_generate:
                 if output_scores:
                     scores += (next_token_scores,)
@@ -3029,43 +3034,24 @@ class GenerationMixin(ContinuousMixin):
                         else (outputs.hidden_states,)
                     )
 
-            # token selection
-            if do_sample:
-                probs = nn.functional.softmax(next_token_scores, dim=-1)
-                # TODO (joao): this OP throws "skipping cudagraphs due to ['incompatible ops']", find solution
-                next_tokens = torch.multinomial(probs, num_samples=1).squeeze(1)
-            else:
-                next_tokens = torch.argmax(next_token_scores, dim=-1)
-
-            # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
 
-            # Track the evaluation step if logit_analyzer is provided
+            # 7. METRIC RECORDING
             if logit_analyzer is not None and should_evaluate:
-                # Compute probs only when needed (for logit_analyzer)
-                if not do_sample:  # If do_sample, probs already computed above
-                    probs = nn.functional.softmax(next_token_scores, dim=-1)
+                with profiler.profile_segment("logit_analyzer_step"):
+                    _, eval_top_k_idx = torch.topk(eval_logits, k=logit_analyzer.top_k)
+                    _, gen_top_k_idx = torch.topk(next_token_scores, k=logit_analyzer.top_k)
 
-                # precompute eval distribution
-                eval_probs = nn.functional.softmax(eval_logits, dim=-1)
-                eval_top_k_values, eval_top_k_indices = torch.topk(eval_logits, k=logit_analyzer.top_k)
+                    logit_analyzer.add_decoding_step(
+                        eval_logits=eval_logits,
+                        gen_logits=next_token_logits,
+                        next_tokens=next_tokens,
+                        gen_probs=probs,  # Optimized: pass existing probs
+                        eval_top_k_indices=eval_top_k_idx,
+                        gen_top_k_indices=gen_top_k_idx
+                    )
 
-                # precompute gen distribution
-                gen_top_k_values, gen_top_k_indices = torch.topk(next_token_scores, k=logit_analyzer.top_k)
-                logit_analyzer.add_decoding_step(
-                    eval_logits=eval_logits,
-                    eval_probs=eval_probs,
-                    eval_top_k_values=eval_top_k_values,
-                    eval_top_k_indices=eval_top_k_indices,
-                    gen_logits=next_token_logits,
-                    gen_probs=probs,
-                    gen_top_k_values=gen_top_k_values,
-                    gen_top_k_indices=gen_top_k_indices,
-                    next_tokens=next_tokens
-                )
-
-            # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
@@ -3074,10 +3060,8 @@ class GenerationMixin(ContinuousMixin):
             this_peer_finished = unfinished_sequences.max() == 0
             cur_len += 1
 
-            # This is needed to properly delete outputs.logits which may be very large for first iteration
-            # Otherwise a reference to outputs is kept which keeps the logits alive in the next iteration
-            del outputs
             generation_step += 1
+            del outputs
 
         if streamer is not None:
             streamer.end()
@@ -3112,32 +3096,28 @@ class GenerationMixin(ContinuousMixin):
             return input_ids
 
     def _prepare_for_self_eval_with_suffix(self, input_ids, suffix_eval_ids, model_kwargs):
+        # input_ids: [B, cur_len], suffix_eval_ids: [B, S]
         input_ids_with_eval = torch.cat([input_ids, suffix_eval_ids], dim=-1)
 
-        if "attention_mask" not in model_kwargs or model_kwargs["attention_mask"] is None:
-            model_kwargs["attention_mask"] = torch.ones_like(input_ids, dtype=torch.long)
-
-        suffix_attention_mask = torch.ones(
-            (model_kwargs["attention_mask"].shape[0], suffix_eval_ids.shape[1]),
-            dtype=model_kwargs["attention_mask"].dtype,
-            device=model_kwargs["attention_mask"].device
-        )
-        extended_attention_mask = torch.cat([model_kwargs["attention_mask"], suffix_attention_mask], dim=-1)
-        model_kwargs["attention_mask"] = extended_attention_mask
-
-        if "cache_position" in model_kwargs and model_kwargs["cache_position"] is not None:
-            cache_pos = model_kwargs["cache_position"]
-            last_cache_pos = cache_pos[-1]
-            suffix_positions = torch.arange(
-                last_cache_pos + 1,
-                last_cache_pos + 1 + suffix_eval_ids.shape[1],
-                device=cache_pos.device,
-                dtype=cache_pos.dtype
+        # Instead of creating new ones, slice our pre-allocated buffer
+        if "attention_mask" in model_kwargs:
+            curr_mask = model_kwargs["attention_mask"]
+            # Use a list for faster cat than repeated torch.cat calls
+            model_kwargs["attention_mask"] = torch.cat(
+                [curr_mask, self.suffix_ones[:curr_mask.shape[0], :suffix_eval_ids.shape[1]]],
+                dim=-1
             )
-            extended_cache_position = torch.cat([cache_pos, suffix_positions], dim=-1)
+
+        if "cache_position" in model_kwargs:
+            cache_pos = model_kwargs["cache_position"]
+            # Use addition instead of arange to avoid integer sequence generation logic
+            last_pos = cache_pos[-1:]
+            suffix_offsets = torch.arange(
+                1, suffix_eval_ids.shape[1] + 1,
+                device=cache_pos.device
+            )
+            extended_cache_position = torch.cat([cache_pos, last_pos + suffix_offsets], dim=-1)
             model_kwargs["cache_position"] = extended_cache_position
-        else:
-            extended_cache_position = model_kwargs.get("cache_position")
 
         return input_ids_with_eval, model_kwargs
 
