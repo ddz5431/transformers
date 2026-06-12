@@ -9,7 +9,7 @@ This script runs a small experiment (3 samples, 2 strategies) to verify:
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from src.llama_align.evaluation.experiment_runner import FrequencyAblationRunner
+from src.llama_align.evaluation.experiment_runner import ExperimentRunner
 
 def main():
     print("="*80)
@@ -32,10 +32,10 @@ def main():
     )
 
     # Create experiment runner
-    runner = FrequencyAblationRunner(
+    runner = ExperimentRunner(
         model=model,
         tokenizer=tokenizer,
-        output_dir="../../test_results/seed_control_test"
+        output_dir="test_results/seed_control_test"
     )
 
     # Test with 2 strategies on 3 samples

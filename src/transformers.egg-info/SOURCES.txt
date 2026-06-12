@@ -2467,8 +2467,11 @@ tests/test_modeling_flax_common.py
 tests/test_modeling_tf_common.py
 tests/test_pipeline_mixin.py
 tests/test_processing_common.py
+tests/test_seed_control.py
 tests/test_sequence_feature_extraction_common.py
 tests/test_tokenization_common.py
 tests/test_tokenization_mistral_common.py
 tests/test_training_args.py
+tests/test_uncertainty_metrics.py
+tests/test_uncertainty_simple.py
 tests/test_video_processing_common.py

@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import contextlib
 import copy
 import inspect
 import os
@@ -26,7 +27,7 @@ import torch.distributed as dist
 from packaging import version
 from torch import nn
 
-from .self_eval_logit_processor import LogitAnalyzer
+from .sentinel_alignment_chronicle import LogitAnalyzer
 from ..cache_utils import (
     Cache,
     DynamicCache,
@@ -2895,6 +2896,15 @@ class GenerationMixin(ContinuousMixin):
         profiler=None,
         **model_kwargs,
     ) -> Union[GenerateNonBeamOutput, torch.LongTensor]:
+        # No-op profiler if not provided
+        class NoOpProfiler:
+            @contextlib.contextmanager
+            def profile_segment(self, name):
+                yield
+        
+        if profiler is None:
+            profiler = NoOpProfiler()
+        
         # init values
         pad_token_id = generation_config._pad_token_tensor
         output_attentions = generation_config.output_attentions
@@ -2949,10 +2959,11 @@ class GenerationMixin(ContinuousMixin):
             is_prefill = True
 
         generation_step = 0
+        suffix_len = suffix_eval_ids.shape[1]
 
         # Initialize the persistent ones-buffer for attention mask slicing
         self.suffix_ones = torch.ones(
-            (batch_size, self.max_suffix_len),
+            (batch_size, suffix_len),
             dtype=torch.long,
             device=input_ids.device
         )

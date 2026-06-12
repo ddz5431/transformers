@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'transformers/src'))
 
-from transformers.generation.self_eval_logit_processor import LogitAnalyzer
+from transformers.generation.sentinel_alignment_chronicle import LogitAnalyzer
 
 
 def test_uncertainty_metrics():
